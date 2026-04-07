@@ -22,8 +22,20 @@ export default function EmployeePortal({ employee, onRefresh }: EmployeePortalPr
     if (employee.active_log) {
       const start = new Date(employee.active_log.start_time).getTime();
       const updateTimer = () => {
-        const now = Date.now();
-        setElapsedTime(now - start);
+        const now = new Date();
+        
+        // Calculate 7 AM of the relevant day
+        const sevenAM = new Date(start);
+        if (new Date(start).getHours() >= 22) {
+          sevenAM.setDate(sevenAM.getDate() + 1);
+        }
+        sevenAM.setHours(7, 0, 0, 0);
+
+        const currentMs = now.getTime();
+        const limitMs = sevenAM.getTime();
+        
+        const effectiveNow = Math.min(currentMs, limitMs);
+        setElapsedTime(effectiveNow - start);
       };
       updateTimer();
       timerRef.current = setInterval(updateTimer, 1000);
@@ -53,11 +65,15 @@ export default function EmployeePortal({ employee, onRefresh }: EmployeePortalPr
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ employee_id: employee.id }),
       });
+      const data = await res.json();
       if (res.ok) {
         onRefresh();
+      } else {
+        alert(data.error || 'Clock in failed');
       }
     } catch (err) {
       console.error('Clock in failed', err);
+      alert('Connection error. Please try again.');
     }
   };
 
@@ -71,18 +87,33 @@ export default function EmployeePortal({ employee, onRefresh }: EmployeePortalPr
       if (res.ok) {
         onRefresh();
         fetchLogs();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Clock out failed');
       }
     } catch (err) {
       console.error('Clock out failed', err);
+      alert('Connection error. Please try again.');
     }
   };
 
   const formatElapsedTime = (ms: number) => {
+    // Cap at 8 hours or 7 AM
     const totalSeconds = Math.floor(ms / 1000);
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
     const seconds = totalSeconds % 60;
+    
+    if (hours >= 8) return "08:00:00 (Capped)";
+    
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  const isClockInAllowed = () => {
+    const now = new Date();
+    const h = now.getHours();
+    const m = now.getMinutes();
+    return (h === 22 && m >= 55) || (h === 23);
   };
 
   return (
@@ -93,11 +124,21 @@ export default function EmployeePortal({ employee, onRefresh }: EmployeePortalPr
           <div>
             <h2 className="text-2xl font-bold text-slate-900">Welcome, {employee.name}</h2>
             <p className="text-slate-500">Hourly Rate: {formatPHP(employee.hourly_rate)}</p>
+            {!employee.active_log && (
+              <p className={cn(
+                "text-sm mt-2 font-medium",
+                isClockInAllowed() ? "text-green-600" : "text-amber-600"
+              )}>
+                {isClockInAllowed() 
+                  ? "✓ Clock-in is currently open." 
+                  : "ⓘ Clock-in opens at 10:55 PM."}
+              </p>
+            )}
           </div>
           
           <div className="flex items-center gap-4">
             {employee.active_log ? (
-              <div className="flex flex-col items-end">
+              <div className="flex flex-col items-end mr-4">
                 <span className="text-sm font-medium text-blue-600 animate-pulse flex items-center gap-1">
                   <Clock className="w-4 h-4" /> Active Session
                 </span>
@@ -106,24 +147,32 @@ export default function EmployeePortal({ employee, onRefresh }: EmployeePortalPr
                 </span>
               </div>
             ) : (
-              <span className="text-slate-400 font-medium">Not Clocked In</span>
+              <span className="text-slate-400 font-medium mr-4">Not Clocked In</span>
             )}
             
-            <button
-              onClick={employee.active_log ? handleClockOut : handleClockIn}
-              className={cn(
-                "flex items-center gap-2 px-8 py-4 rounded-xl font-bold transition-all active:scale-95 shadow-lg",
-                employee.active_log 
-                  ? "bg-red-500 hover:bg-red-600 text-white shadow-red-200" 
-                  : "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200"
-              )}
-            >
-              {employee.active_log ? (
-                <><Square className="w-5 h-5 fill-current" /> Clock Out</>
+            <div className="flex gap-3">
+              {!employee.active_log ? (
+                <button
+                  onClick={handleClockIn}
+                  disabled={!isClockInAllowed()}
+                  className={cn(
+                    "flex items-center gap-2 px-8 py-4 rounded-xl font-bold transition-all active:scale-95 shadow-lg",
+                    isClockInAllowed()
+                      ? "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200"
+                      : "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
+                  )}
+                >
+                  <Play className="w-5 h-5 fill-current" /> Clock In
+                </button>
               ) : (
-                <><Play className="w-5 h-5 fill-current" /> Clock In</>
+                <button
+                  onClick={handleClockOut}
+                  className="flex items-center gap-2 px-8 py-4 rounded-xl font-bold transition-all active:scale-95 shadow-lg bg-red-500 hover:bg-red-600 text-white shadow-red-200"
+                >
+                  <Square className="w-5 h-5 fill-current" /> Stop / Clock Out
+                </button>
               )}
-            </button>
+            </div>
           </div>
         </div>
       </div>

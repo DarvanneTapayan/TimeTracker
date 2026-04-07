@@ -62,7 +62,19 @@ async function startServer() {
   // Clock In
   app.post("/api/clock-in", (req, res) => {
     const { employee_id } = req.body;
-    const startTime = new Date().toISOString();
+    const now = new Date();
+    const hours = now.getHours();
+    const minutes = now.getMinutes();
+    
+    // Restriction: Only at 10:55 PM (22:55)
+    // Allowing a small window (e.g., 10:55 PM to 11:15 PM) for practicality
+    const isCorrectTime = (hours === 22 && minutes >= 55) || (hours === 23);
+    
+    if (!isCorrectTime) {
+      return res.status(400).json({ error: "Clock-in is only allowed starting at 10:55 PM." });
+    }
+
+    const startTime = now.toISOString();
     
     // Check if already clocked in
     const existing = db.prepare('SELECT id FROM time_logs WHERE employee_id = ? AND end_time IS NULL').get(employee_id);
@@ -77,19 +89,34 @@ async function startServer() {
   // Clock Out
   app.post("/api/clock-out", (req, res) => {
     const { employee_id } = req.body;
-    const endTime = new Date().toISOString();
+    let endTimeDate = new Date();
     
     const activeLog = db.prepare('SELECT * FROM time_logs WHERE employee_id = ? AND end_time IS NULL').get(employee_id) as any;
     if (!activeLog) {
       return res.status(400).json({ error: "Not clocked in" });
     }
 
+    // Auto-stop at 7:00 AM logic
+    // If current time is past 7:00 AM of the day following the start_time (or same day if they started very early)
+    const start = new Date(activeLog.start_time);
+    const sevenAM = new Date(start);
+    if (start.getHours() >= 22) {
+      // Started at night, 7 AM is the next day
+      sevenAM.setDate(sevenAM.getDate() + 1);
+    }
+    sevenAM.setHours(7, 0, 0, 0);
+
+    if (endTimeDate > sevenAM) {
+      endTimeDate = sevenAM;
+    }
+
+    const endTime = endTimeDate.toISOString();
     const employee = db.prepare('SELECT hourly_rate FROM employees WHERE id = ?').get(employee_id) as any;
     
-    const start = new Date(activeLog.start_time).getTime();
-    const end = new Date(endTime).getTime();
-    const hours = (end - start) / (1000 * 60 * 60);
-    const cappedHours = Math.min(hours, 8);
+    const startTimeMs = start.getTime();
+    const endTimeMs = endTimeDate.getTime();
+    const durationHours = (endTimeMs - startTimeMs) / (1000 * 60 * 60);
+    const cappedHours = Math.min(durationHours, 8);
     const dailyPay = cappedHours * employee.hourly_rate;
 
     db.prepare(`
@@ -98,7 +125,7 @@ async function startServer() {
       WHERE id = ?
     `).run(endTime, cappedHours, dailyPay, activeLog.id);
 
-    res.json({ success: true, total_hours: cappedHours, daily_pay: dailyPay });
+    res.json({ success: true, total_hours: cappedHours, daily_pay: dailyPay, end_time: endTime });
   });
 
   // Get logs for employee (current week)
