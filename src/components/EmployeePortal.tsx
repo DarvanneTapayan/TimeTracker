@@ -30,6 +30,7 @@ export default function EmployeePortal({ employee, onRefresh }: EmployeePortalPr
         const now = new Date();
         
         // Calculate stop time of the relevant day
+        if (!settings.auto_stop_time) return;
         const [stopH, stopM] = settings.auto_stop_time.split(':').map(Number);
         const stopTime = new Date(start);
         if (new Date(start).getHours() >= stopH) {
@@ -68,7 +69,9 @@ export default function EmployeePortal({ employee, onRefresh }: EmployeePortalPr
     try {
       const res = await fetch('/api/settings');
       const data = await res.json();
-      setSettings(data);
+      if (data && data.clock_in_start) {
+        setSettings(data);
+      }
     } catch (err) {
       console.error('Failed to fetch settings', err);
     }
@@ -126,6 +129,7 @@ export default function EmployeePortal({ employee, onRefresh }: EmployeePortalPr
   };
 
   const isClockInAllowed = () => {
+    if (!settings.clock_in_start || !settings.auto_stop_time) return false;
     const now = new Date();
     const [sH, sM] = settings.clock_in_start.split(':').map(Number);
     const [eH, eM] = settings.auto_stop_time.split(':').map(Number);

@@ -20,27 +20,35 @@ export default function App() {
   useEffect(() => {
     const savedUser = localStorage.getItem('peso_user');
     if (savedUser) {
-      const parsed = JSON.parse(savedUser);
-      // Fetch latest status from server to ensure active_log is correct
-      fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: parsed.username, password: parsed.password }),
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (data.id) {
-          setUser(data);
-          localStorage.setItem('peso_user', JSON.stringify(data));
-          setView(data.role === 'admin' ? 'admin' : 'employee');
-        }
-      })
-      .catch(() => {
-        setUser(parsed);
-        setView(parsed.role === 'admin' ? 'admin' : 'employee');
-      });
+      try {
+        const parsed = JSON.parse(savedUser);
+        // Fetch latest status from server to ensure active_log is correct
+        fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: parsed.username, password: parsed.password }),
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data.id) {
+            setUser(data);
+            localStorage.setItem('peso_user', JSON.stringify(data));
+            setView(data.role === 'admin' ? 'admin' : 'employee');
+          }
+          setLoading(false);
+        })
+        .catch(() => {
+          setUser(parsed);
+          setView(parsed.role === 'admin' ? 'admin' : 'employee');
+          setLoading(false);
+        });
+      } catch (e) {
+        localStorage.removeItem('peso_user');
+        setLoading(false);
+      }
+    } else {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   const handleLogin = async (e: React.FormEvent) => {

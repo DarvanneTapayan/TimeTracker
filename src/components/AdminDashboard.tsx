@@ -40,7 +40,9 @@ export default function AdminDashboard() {
     try {
       const res = await fetch('/api/settings');
       const data = await res.json();
-      setSettings(data);
+      if (data && data.clock_in_start) {
+        setSettings(data);
+      }
     } catch (err) {
       console.error('Failed to fetch settings', err);
     }
