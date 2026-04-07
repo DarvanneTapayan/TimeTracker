@@ -21,6 +21,14 @@ export default function EmployeePortal({ employee, onRefresh }: EmployeePortalPr
   useEffect(() => {
     fetchLogs();
     fetchSettings();
+    
+    // Poll for updates every 30 seconds to keep logs in sync
+    const interval = setInterval(() => {
+      fetchLogs();
+      fetchSettings();
+    }, 30000);
+    
+    return () => clearInterval(interval);
   }, [employee.id]);
 
   useEffect(() => {
@@ -86,7 +94,8 @@ export default function EmployeePortal({ employee, onRefresh }: EmployeePortalPr
       });
       const data = await res.json();
       if (res.ok) {
-        onRefresh();
+        await onRefresh();
+        await fetchLogs();
       } else {
         alert(data.error || 'Clock in failed');
       }
@@ -104,8 +113,8 @@ export default function EmployeePortal({ employee, onRefresh }: EmployeePortalPr
         body: JSON.stringify({ employee_id: employee.id }),
       });
       if (res.ok) {
-        onRefresh();
-        fetchLogs();
+        await onRefresh();
+        await fetchLogs();
       } else {
         const data = await res.json();
         alert(data.error || 'Clock out failed');

@@ -21,6 +21,13 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetchData();
     fetchSettings();
+    
+    // Poll for updates every 10 seconds for the admin
+    const interval = setInterval(() => {
+      fetchData();
+    }, 10000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   const fetchData = async () => {
