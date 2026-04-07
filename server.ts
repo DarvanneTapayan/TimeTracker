@@ -59,19 +59,50 @@ async function startServer() {
     res.json({ success: true });
   });
 
+  // Settings
+  app.get("/api/settings", (req, res) => {
+    const settings = db.prepare('SELECT * FROM settings').all() as any[];
+    const result = settings.reduce((acc, s) => ({ ...acc, [s.key]: s.value }), {});
+    res.json(result);
+  });
+
+  app.put("/api/settings", (req, res) => {
+    const { clock_in_start, auto_stop_time } = req.body;
+    if (clock_in_start) db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('clock_in_start', clock_in_start);
+    if (auto_stop_time) db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('auto_stop_time', auto_stop_time);
+    res.json({ success: true });
+  });
+
+  function isTimeInRange(now: Date, startStr: string, endStr: string) {
+    const [sH, sM] = startStr.split(':').map(Number);
+    const [eH, eM] = endStr.split(':').map(Number);
+    const nowH = now.getHours();
+    const nowM = now.getMinutes();
+
+    const startMin = sH * 60 + sM;
+    const endMin = eH * 60 + eM;
+    const nowMin = nowH * 60 + nowM;
+
+    if (startMin <= endMin) {
+      return nowMin >= startMin && nowMin <= endMin;
+    } else {
+      // Wraps around midnight (e.g., 22:55 to 07:00)
+      return nowMin >= startMin || nowMin <= endMin;
+    }
+  }
+
   // Clock In
   app.post("/api/clock-in", (req, res) => {
     const { employee_id } = req.body;
     const now = new Date();
-    const hours = now.getHours();
-    const minutes = now.getMinutes();
     
-    // Restriction: Only at 10:55 PM (22:55)
-    // Allowing a small window (e.g., 10:55 PM to 11:15 PM) for practicality
-    const isCorrectTime = (hours === 22 && minutes >= 55) || (hours === 23);
+    const settings = db.prepare('SELECT * FROM settings').all() as any[];
+    const config = settings.reduce((acc, s) => ({ ...acc, [s.key]: s.value }), {});
     
-    if (!isCorrectTime) {
-      return res.status(400).json({ error: "Clock-in is only allowed starting at 10:55 PM." });
+    if (!isTimeInRange(now, config.clock_in_start, config.auto_stop_time)) {
+      return res.status(400).json({ 
+        error: `Clock-in is only allowed between ${config.clock_in_start} and ${config.auto_stop_time}.` 
+      });
     }
 
     const startTime = now.toISOString();
@@ -96,18 +127,24 @@ async function startServer() {
       return res.status(400).json({ error: "Not clocked in" });
     }
 
-    // Auto-stop at 7:00 AM logic
-    // If current time is past 7:00 AM of the day following the start_time (or same day if they started very early)
-    const start = new Date(activeLog.start_time);
-    const sevenAM = new Date(start);
-    if (start.getHours() >= 22) {
-      // Started at night, 7 AM is the next day
-      sevenAM.setDate(sevenAM.getDate() + 1);
-    }
-    sevenAM.setHours(7, 0, 0, 0);
+    const settings = db.prepare('SELECT * FROM settings').all() as any[];
+    const config = settings.reduce((acc, s) => ({ ...acc, [s.key]: s.value }), {});
+    const [stopH, stopM] = config.auto_stop_time.split(':').map(Number);
 
-    if (endTimeDate > sevenAM) {
-      endTimeDate = sevenAM;
+    // Auto-stop logic
+    const start = new Date(activeLog.start_time);
+    const stopTime = new Date(start);
+    
+    const startH = start.getHours();
+    if (startH >= stopH) {
+      // Started before midnight or after midnight but before stop time
+      // If started at 23:00 and stop is 07:00, stop is next day
+      stopTime.setDate(stopTime.getDate() + 1);
+    }
+    stopTime.setHours(stopH, stopM, 0, 0);
+
+    if (endTimeDate > stopTime) {
+      endTimeDate = stopTime;
     }
 
     const endTime = endTimeDate.toISOString();

@@ -24,6 +24,11 @@ db.exec(`
     daily_pay REAL,
     FOREIGN KEY (employee_id) REFERENCES employees (id)
   );
+
+  CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+  );
 `);
 
 // Seed initial data if empty
@@ -36,6 +41,10 @@ if (employeeCount.count === 0) {
   // Sample employee
   db.prepare('INSERT INTO employees (name, username, password, role, hourly_rate) VALUES (?, ?, ?, ?, ?)')
     .run('Juan Dela Cruz', 'juan', 'password123', 'employee', 150);
+
+  // Default settings
+  db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('clock_in_start', '22:55');
+  db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('auto_stop_time', '07:00');
 }
 
 export default db;

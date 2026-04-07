@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, FileText, Plus, Edit2, Check, X } from 'lucide-react';
+import { Users, FileText, Plus, Edit2, Check, X, Settings as SettingsIcon, Save } from 'lucide-react';
 import { format } from 'date-fns';
 import { Employee, TimeLog } from '../types';
 import { formatPHP, cn } from '../lib/utils';
@@ -7,6 +7,10 @@ import { formatPHP, cn } from '../lib/utils';
 export default function AdminDashboard() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [logs, setLogs] = useState<(TimeLog & { employee_name: string, hourly_rate: number })[]>([]);
+  const [settings, setSettings] = useState<{ clock_in_start: string, auto_stop_time: string }>({
+    clock_in_start: '22:55',
+    auto_stop_time: '07:00'
+  });
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [newName, setNewName] = useState('');
@@ -16,6 +20,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     fetchData();
+    fetchSettings();
   }, []);
 
   const fetchData = async () => {
@@ -28,6 +33,31 @@ export default function AdminDashboard() {
       setLogs(await logRes.json());
     } catch (err) {
       console.error('Failed to fetch admin data', err);
+    }
+  };
+
+  const fetchSettings = async () => {
+    try {
+      const res = await fetch('/api/settings');
+      const data = await res.json();
+      setSettings(data);
+    } catch (err) {
+      console.error('Failed to fetch settings', err);
+    }
+  };
+
+  const handleSaveSettings = async () => {
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings),
+      });
+      if (res.ok) {
+        alert('Settings saved successfully');
+      }
+    } catch (err) {
+      console.error('Failed to save settings', err);
     }
   };
 
@@ -96,6 +126,42 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-12">
+      {/* System Settings */}
+      <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
+        <div className="flex items-center gap-2 mb-6">
+          <SettingsIcon className="w-6 h-6 text-blue-600" />
+          <h2 className="text-xl font-bold text-slate-900">System Settings</h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
+          <div className="space-y-2">
+            <label className="text-sm font-bold text-slate-700">Clock-In Start Time (24h format)</label>
+            <input
+              type="time"
+              className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500"
+              value={settings.clock_in_start}
+              onChange={(e) => setSettings({ ...settings, clock_in_start: e.target.value })}
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-bold text-slate-700">Auto-Stop Time (24h format)</label>
+            <input
+              type="time"
+              className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500"
+              value={settings.auto_stop_time}
+              onChange={(e) => setSettings({ ...settings, auto_stop_time: e.target.value })}
+            />
+          </div>
+          <div className="md:col-span-2 flex justify-end">
+            <button
+              onClick={handleSaveSettings}
+              className="flex items-center gap-2 bg-slate-900 text-white px-6 py-3 rounded-xl font-bold hover:bg-slate-800 transition-all active:scale-95"
+            >
+              <Save className="w-5 h-5" /> Save Configuration
+            </button>
+          </div>
+        </div>
+      </section>
+
       {/* Employee Management */}
       <section>
         <div className="flex items-center justify-between mb-6">

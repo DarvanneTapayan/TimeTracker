@@ -11,11 +11,16 @@ interface EmployeePortalProps {
 
 export default function EmployeePortal({ employee, onRefresh }: EmployeePortalProps) {
   const [logs, setLogs] = useState<TimeLog[]>([]);
+  const [settings, setSettings] = useState<{ clock_in_start: string, auto_stop_time: string }>({
+    clock_in_start: '22:55',
+    auto_stop_time: '07:00'
+  });
   const [elapsedTime, setElapsedTime] = useState<number>(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     fetchLogs();
+    fetchSettings();
   }, [employee.id]);
 
   useEffect(() => {
@@ -24,15 +29,16 @@ export default function EmployeePortal({ employee, onRefresh }: EmployeePortalPr
       const updateTimer = () => {
         const now = new Date();
         
-        // Calculate 7 AM of the relevant day
-        const sevenAM = new Date(start);
-        if (new Date(start).getHours() >= 22) {
-          sevenAM.setDate(sevenAM.getDate() + 1);
+        // Calculate stop time of the relevant day
+        const [stopH, stopM] = settings.auto_stop_time.split(':').map(Number);
+        const stopTime = new Date(start);
+        if (new Date(start).getHours() >= stopH) {
+          stopTime.setDate(stopTime.getDate() + 1);
         }
-        sevenAM.setHours(7, 0, 0, 0);
+        stopTime.setHours(stopH, stopM, 0, 0);
 
         const currentMs = now.getTime();
-        const limitMs = sevenAM.getTime();
+        const limitMs = stopTime.getTime();
         
         const effectiveNow = Math.min(currentMs, limitMs);
         setElapsedTime(effectiveNow - start);
@@ -46,7 +52,7 @@ export default function EmployeePortal({ employee, onRefresh }: EmployeePortalPr
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [employee.active_log]);
+  }, [employee.active_log, settings.auto_stop_time]);
 
   const fetchLogs = async () => {
     try {
@@ -55,6 +61,16 @@ export default function EmployeePortal({ employee, onRefresh }: EmployeePortalPr
       setLogs(data);
     } catch (err) {
       console.error('Failed to fetch logs', err);
+    }
+  };
+
+  const fetchSettings = async () => {
+    try {
+      const res = await fetch('/api/settings');
+      const data = await res.json();
+      setSettings(data);
+    } catch (err) {
+      console.error('Failed to fetch settings', err);
     }
   };
 
@@ -98,7 +114,7 @@ export default function EmployeePortal({ employee, onRefresh }: EmployeePortalPr
   };
 
   const formatElapsedTime = (ms: number) => {
-    // Cap at 8 hours or 7 AM
+    // Cap at 8 hours
     const totalSeconds = Math.floor(ms / 1000);
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -111,9 +127,20 @@ export default function EmployeePortal({ employee, onRefresh }: EmployeePortalPr
 
   const isClockInAllowed = () => {
     const now = new Date();
-    const h = now.getHours();
-    const m = now.getMinutes();
-    return (h === 22 && m >= 55) || (h === 23);
+    const [sH, sM] = settings.clock_in_start.split(':').map(Number);
+    const [eH, eM] = settings.auto_stop_time.split(':').map(Number);
+    const nowH = now.getHours();
+    const nowM = now.getMinutes();
+
+    const startMin = sH * 60 + sM;
+    const endMin = eH * 60 + eM;
+    const nowMin = nowH * 60 + nowM;
+
+    if (startMin <= endMin) {
+      return nowMin >= startMin && nowMin <= endMin;
+    } else {
+      return nowMin >= startMin || nowMin <= endMin;
+    }
   };
 
   return (
@@ -131,7 +158,7 @@ export default function EmployeePortal({ employee, onRefresh }: EmployeePortalPr
               )}>
                 {isClockInAllowed() 
                   ? "✓ Clock-in is currently open." 
-                  : "ⓘ Clock-in opens at 10:55 PM."}
+                  : `ⓘ Clock-in is allowed from ${settings.clock_in_start} to ${settings.auto_stop_time}.`}
               </p>
             )}
           </div>
