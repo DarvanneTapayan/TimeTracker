@@ -62,7 +62,10 @@ async function startServer() {
   // Settings
   app.get("/api/settings", (req, res) => {
     const settings = db.prepare('SELECT * FROM settings').all() as any[];
-    const result = settings.reduce((acc, s) => ({ ...acc, [s.key]: s.value }), {});
+    const result = settings.reduce((acc, s) => ({ ...acc, [s.key]: s.value }), {
+      clock_in_start: '22:55',
+      auto_stop_time: '07:00'
+    });
     res.json(result);
   });
 
@@ -97,7 +100,10 @@ async function startServer() {
     const now = new Date();
     
     const settings = db.prepare('SELECT * FROM settings').all() as any[];
-    const config = settings.reduce((acc, s) => ({ ...acc, [s.key]: s.value }), {});
+    const config = settings.reduce((acc, s) => ({ ...acc, [s.key]: s.value }), {
+      clock_in_start: '22:55',
+      auto_stop_time: '07:00'
+    });
     
     if (!isTimeInRange(now, config.clock_in_start, config.auto_stop_time)) {
       return res.status(400).json({ 
@@ -128,7 +134,10 @@ async function startServer() {
     }
 
     const settings = db.prepare('SELECT * FROM settings').all() as any[];
-    const config = settings.reduce((acc, s) => ({ ...acc, [s.key]: s.value }), {});
+    const config = settings.reduce((acc, s) => ({ ...acc, [s.key]: s.value }), {
+      clock_in_start: '22:55',
+      auto_stop_time: '07:00'
+    });
     const [stopH, stopM] = config.auto_stop_time.split(':').map(Number);
 
     // Auto-stop logic

@@ -41,8 +41,11 @@ if (employeeCount.count === 0) {
   // Sample employee
   db.prepare('INSERT INTO employees (name, username, password, role, hourly_rate) VALUES (?, ?, ?, ?, ?)')
     .run('Juan Dela Cruz', 'juan', 'password123', 'employee', 150);
+}
 
-  // Default settings
+// Seed settings if missing
+const settingsCount = db.prepare('SELECT COUNT(*) as count FROM settings').get() as { count: number };
+if (settingsCount.count === 0) {
   db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('clock_in_start', '22:55');
   db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('auto_stop_time', '07:00');
 }
