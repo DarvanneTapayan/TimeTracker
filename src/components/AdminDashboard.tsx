@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, FileText, Plus, Edit2, Check, X, Settings as SettingsIcon, Save } from 'lucide-react';
+import { Users, FileText, Plus, Edit2, Check, X, Settings as SettingsIcon, Save, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Employee, TimeLog } from '../types';
 import { formatPHP, cn } from '../lib/utils';
@@ -122,6 +122,23 @@ export default function AdminDashboard() {
       }
     } catch (err) {
       console.error('Failed to update employee', err);
+    }
+  };
+
+  const handleDeleteEmployee = async (id: number) => {
+    if (!window.confirm('Are you sure you want to delete this employee? This will also delete all their time logs.')) return;
+    try {
+      const res = await fetch(`/api/employees/${id}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        fetchData();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to delete employee');
+      }
+    } catch (err) {
+      console.error('Failed to delete employee', err);
     }
   };
 
@@ -289,9 +306,14 @@ export default function AdminDashboard() {
                         <button onClick={() => setEditingId(null)} className="p-1.5 text-slate-400 hover:bg-slate-100 rounded-md"><X className="w-5 h-5" /></button>
                       </div>
                     ) : (
-                      <button onClick={() => startEdit(emp)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-all">
-                        <Edit2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        <button onClick={() => startEdit(emp)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-all">
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => handleDeleteEmployee(emp.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-all">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     )}
                   </td>
                 </tr>
