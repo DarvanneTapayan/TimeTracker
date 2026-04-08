@@ -17,9 +17,15 @@ export default function EmployeePortal({ employee, onRefresh }: EmployeePortalPr
     auto_stop_time: '07:00'
   });
   const [elapsedTime, setElapsedTime] = useState<number>(0);
+  const [currentTime, setCurrentTime] = useState(new Date());
   const [showSettings, setShowSettings] = useState(false);
   const [qrCode, setQrCode] = useState<string | null>(employee.qr_code || null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     fetchLogs();
@@ -380,16 +386,28 @@ export default function EmployeePortal({ employee, onRefresh }: EmployeePortalPr
                 <h2 className="text-4xl font-black tracking-tight">
                   {employee.active_log ? "You're on the clock" : `Hello, ${employee.name.split(' ')[0]}!`}
                 </h2>
-                <p className={cn(
-                  "text-lg mt-2 font-medium",
-                  employee.active_log ? "text-blue-100" : "text-slate-500"
-                )}>
-                  {employee.active_log 
-                    ? `Started at ${format(new Date(employee.active_log.start_time), 'hh:mm a')}`
-                    : isClockInAllowed() 
-                      ? "Ready to start your shift?" 
-                      : `Next shift available at ${settings.clock_in_start}`}
-                </p>
+                <div className="flex items-center gap-3 mt-2">
+                  <p className={cn(
+                    "text-lg font-medium",
+                    employee.active_log ? "text-blue-100" : "text-slate-500"
+                  )}>
+                    {employee.active_log 
+                      ? `Started at ${format(new Date(employee.active_log.start_time), 'hh:mm a')}`
+                      : isClockInAllowed() 
+                        ? "Ready to start your shift?" 
+                        : `Next shift available at ${settings.clock_in_start}`}
+                  </p>
+                  <div className={cn(
+                    "h-1 w-1 rounded-full",
+                    employee.active_log ? "bg-blue-300" : "bg-slate-300"
+                  )} />
+                  <p className={cn(
+                    "text-sm font-bold font-mono",
+                    employee.active_log ? "text-blue-200" : "text-slate-400"
+                  )}>
+                    {format(currentTime, 'hh:mm:ss a')}
+                  </p>
+                </div>
               </div>
 
               {!employee.active_log && !isClockInAllowed() && (

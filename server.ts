@@ -1,4 +1,6 @@
 import "dotenv/config";
+// Set timezone to Asia/Manila for consistent time calculations (PHP currency context)
+process.env.TZ = 'Asia/Manila';
 import express from "express";
 import path from "path";
 import { query, queryOne, initDb } from "./src/db.js";
