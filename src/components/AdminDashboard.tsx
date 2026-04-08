@@ -38,11 +38,23 @@ export default function AdminDashboard() {
     return () => clearInterval(interval);
   }, []);
 
+  const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
+    const savedUser = localStorage.getItem('peso_user');
+    const token = savedUser ? JSON.parse(savedUser).session_token : '';
+    return fetch(url, {
+      ...options,
+      headers: {
+        ...options.headers,
+        'x-session-token': token,
+      },
+    });
+  };
+
   const fetchData = async () => {
     try {
       const [empRes, logRes] = await Promise.all([
-        fetch('/api/employees'),
-        fetch('/api/admin/logs')
+        fetchWithAuth('/api/employees'),
+        fetchWithAuth('/api/admin/logs')
       ]);
       setEmployees(await empRes.json());
       setLogs(await logRes.json());
@@ -53,7 +65,7 @@ export default function AdminDashboard() {
 
   const fetchSettings = async () => {
     try {
-      const res = await fetch('/api/settings');
+      const res = await fetchWithAuth('/api/settings');
       const data = await res.json();
       if (data && data.clock_in_start) {
         setSettings(data);
@@ -65,7 +77,7 @@ export default function AdminDashboard() {
 
   const handleSaveSettings = async () => {
     try {
-      const res = await fetch('/api/settings', {
+      const res = await fetchWithAuth('/api/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(settings),
@@ -81,7 +93,7 @@ export default function AdminDashboard() {
   const handleAddEmployee = async () => {
     if (!newName || !newUsername || !newPassword || !newRate) return;
     try {
-      const res = await fetch('/api/employees', {
+      const res = await fetchWithAuth('/api/employees', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -110,7 +122,7 @@ export default function AdminDashboard() {
   const handleUpdateEmployee = async (id: number) => {
     if (!newName || !newUsername || !newPassword || !newRate) return;
     try {
-      const res = await fetch(`/api/employees/${id}`, {
+      const res = await fetchWithAuth(`/api/employees/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -136,7 +148,7 @@ export default function AdminDashboard() {
   const handleDeleteEmployee = async (id: number) => {
     if (!window.confirm('Are you sure you want to delete this employee? This will also delete all their time logs.')) return;
     try {
-      const res = await fetch(`/api/employees/${id}`, {
+      const res = await fetchWithAuth(`/api/employees/${id}`, {
         method: 'DELETE',
       });
       if (res.ok) {

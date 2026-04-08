@@ -68,7 +68,8 @@ export const initDb = async () => {
           password TEXT NOT NULL,
           role TEXT NOT NULL DEFAULT 'employee',
           hourly_rate REAL NOT NULL,
-          qr_code TEXT
+          qr_code TEXT,
+          session_token TEXT
         );
       `;
       await pgPool.sql`
@@ -117,6 +118,14 @@ export const initDb = async () => {
         console.log("Adding qr_code column to employees...");
         await query('ALTER TABLE employees ADD COLUMN qr_code TEXT');
       }
+
+      // Migration: Add session_token to employees if it doesn't exist
+      try {
+        await query('SELECT session_token FROM employees LIMIT 1');
+      } catch (e) {
+        console.log("Adding session_token column to employees...");
+        await query('ALTER TABLE employees ADD COLUMN session_token TEXT');
+      }
     } catch (err) {
       console.error("Postgres Init Error:", err);
       throw err;
@@ -130,7 +139,9 @@ export const initDb = async () => {
         username TEXT UNIQUE NOT NULL,
         password TEXT NOT NULL,
         role TEXT NOT NULL DEFAULT 'employee',
-        hourly_rate REAL NOT NULL
+        hourly_rate REAL NOT NULL,
+        qr_code TEXT,
+        session_token TEXT
       );
 
       CREATE TABLE IF NOT EXISTS time_logs (
@@ -160,6 +171,21 @@ export const initDb = async () => {
     if (settingsCount.count === 0) {
       db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('clock_in_start', '22:55');
       db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('auto_stop_time', '07:00');
+    }
+
+    // SQLite Migrations
+    try {
+      db.prepare('SELECT qr_code FROM employees LIMIT 1').get();
+    } catch (e) {
+      console.log("Adding qr_code column to employees (SQLite)...");
+      db.prepare('ALTER TABLE employees ADD COLUMN qr_code TEXT').run();
+    }
+
+    try {
+      db.prepare('SELECT session_token FROM employees LIMIT 1').get();
+    } catch (e) {
+      console.log("Adding session_token column to employees (SQLite)...");
+      db.prepare('ALTER TABLE employees ADD COLUMN session_token TEXT').run();
     }
   }
 };

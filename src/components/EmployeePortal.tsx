@@ -67,10 +67,9 @@ export default function EmployeePortal({ employee, onRefresh }: EmployeePortalPr
       // Heartbeat every 30 seconds
       const heartbeatInterval = setInterval(async () => {
         try {
-          const res = await fetch('/api/heartbeat', {
+          const res = await fetchWithAuth('/api/heartbeat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ employee_id: employee.id }),
           });
           if (!res.ok) {
             // If heartbeat fails (e.g. server auto-stopped the log), refresh to show correct state
@@ -91,9 +90,21 @@ export default function EmployeePortal({ employee, onRefresh }: EmployeePortalPr
     }
   }, [employee.active_log, settings.auto_stop_time, employee.id]);
 
+  const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
+    const savedUser = localStorage.getItem('peso_user');
+    const token = savedUser ? JSON.parse(savedUser).session_token : '';
+    return fetch(url, {
+      ...options,
+      headers: {
+        ...options.headers,
+        'x-session-token': token,
+      },
+    });
+  };
+
   const fetchLogs = async () => {
     try {
-      const res = await fetch(`/api/logs/${employee.id}`);
+      const res = await fetchWithAuth(`/api/logs/${employee.id}`);
       const data = await res.json();
       setLogs(data);
     } catch (err) {
@@ -103,7 +114,7 @@ export default function EmployeePortal({ employee, onRefresh }: EmployeePortalPr
 
   const fetchSettings = async () => {
     try {
-      const res = await fetch('/api/settings');
+      const res = await fetchWithAuth('/api/settings');
       const data = await res.json();
       if (data && data.clock_in_start) {
         setSettings(data);
@@ -115,10 +126,9 @@ export default function EmployeePortal({ employee, onRefresh }: EmployeePortalPr
 
   const handleClockIn = async () => {
     try {
-      const res = await fetch('/api/clock-in', {
+      const res = await fetchWithAuth('/api/clock-in', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ employee_id: employee.id }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -135,10 +145,9 @@ export default function EmployeePortal({ employee, onRefresh }: EmployeePortalPr
 
   const handleClockOut = async () => {
     try {
-      const res = await fetch('/api/clock-out', {
+      const res = await fetchWithAuth('/api/clock-out', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ employee_id: employee.id }),
       });
       if (res.ok) {
         await onRefresh();
@@ -207,7 +216,7 @@ export default function EmployeePortal({ employee, onRefresh }: EmployeePortalPr
         const base64String = reader.result as string;
         setQrCode(base64String);
         try {
-          await fetch(`/api/employees/${employee.id}/qr`, {
+          await fetchWithAuth(`/api/employees/${employee.id}/qr`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ qr_code: base64String }),

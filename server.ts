@@ -3,6 +3,7 @@ import "dotenv/config";
 process.env.TZ = 'Asia/Manila';
 import express from "express";
 import path from "path";
+import crypto from "crypto";
 import { query, queryOne, initDb } from "./src/db.js";
 
 const app = express();
@@ -51,16 +52,21 @@ app.post("/api/login", async (req, res, next) => {
     console.log(`Login attempt for: "${cleanUsername}"`);
     
     // Check for user first to provide better debug info
-    const user = await queryOne('SELECT id, name, username, password, role, hourly_rate FROM employees WHERE LOWER(username) = LOWER(?)', [cleanUsername]);
+    const user = await queryOne('SELECT id, name, username, password, role, hourly_rate, qr_code FROM employees WHERE LOWER(username) = LOWER(?)', [cleanUsername]);
     
     if (user) {
       if (user.password === cleanPassword) {
         console.log(`Login successful for: ${cleanUsername}`);
+        
+        // Generate new session token for single session enforcement
+        const sessionToken = crypto.randomUUID();
+        await query('UPDATE employees SET session_token = ? WHERE id = ?', [sessionToken, user.id]);
+        
         const activeLog = await queryOne('SELECT id, start_time FROM time_logs WHERE employee_id = ? AND end_time IS NULL LIMIT 1', [user.id]);
         
         // Don't send password back to client
         const { password: _, ...userWithoutPassword } = user;
-        res.json({ ...userWithoutPassword, active_log: activeLog || null });
+        res.json({ ...userWithoutPassword, session_token: sessionToken, active_log: activeLog || null });
       } else {
         console.log(`Password mismatch for: ${cleanUsername}`);
         res.status(401).json({ error: "Invalid credentials" });
@@ -75,8 +81,42 @@ app.post("/api/login", async (req, res, next) => {
   }
 });
 
+// Middleware to verify session
+const authenticate = async (req: any, res: any, next: any) => {
+  const token = req.headers['x-session-token'];
+  if (!token) return res.status(401).json({ error: "Unauthorized" });
+
+  try {
+    if (!dbInitialized) await initialize();
+    const user = await queryOne('SELECT id, name, username, role, hourly_rate, qr_code FROM employees WHERE session_token = ?', [token]);
+    if (!user) return res.status(401).json({ error: "Session expired or logged in elsewhere" });
+    
+    req.user = user;
+    next();
+  } catch (err) {
+    next(err);
+  }
+};
+
+const adminOnly = (req: any, res: any, next: any) => {
+  if (req.user?.role !== 'admin') {
+    return res.status(403).json({ error: "Forbidden: Admin access required" });
+  }
+  next();
+};
+
+// Get current user status
+app.get("/api/me", authenticate, async (req: any, res) => {
+  try {
+    const activeLog = await queryOne('SELECT id, start_time FROM time_logs WHERE employee_id = ? AND end_time IS NULL LIMIT 1', [req.user.id]);
+    res.json({ ...req.user, active_log: activeLog || null });
+  } catch (err) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 // Get all employees (Admin only)
-app.get("/api/employees", async (req, res, next) => {
+app.get("/api/employees", authenticate, adminOnly, async (req: any, res, next) => {
   try {
     if (!dbInitialized) await initialize();
     const employees = await query(`
@@ -91,7 +131,7 @@ app.get("/api/employees", async (req, res, next) => {
 });
 
 // Create employee
-app.post("/api/employees", async (req, res, next) => {
+app.post("/api/employees", authenticate, adminOnly, async (req: any, res, next) => {
   try {
     if (!dbInitialized) await initialize();
     const { name, username, password, hourly_rate } = req.body;
@@ -107,11 +147,17 @@ app.post("/api/employees", async (req, res, next) => {
 });
 
 // Update employee QR code
-app.put("/api/employees/:id/qr", async (req, res, next) => {
+app.put("/api/employees/:id/qr", authenticate, async (req: any, res, next) => {
   try {
     if (!dbInitialized) await initialize();
     const { id } = req.params;
     const { qr_code } = req.body;
+    
+    // Only allow updating own QR code unless admin
+    if (req.user.id.toString() !== id && req.user.role !== 'admin') {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+
     await query('UPDATE employees SET qr_code = ? WHERE id = ?', [qr_code, id]);
     res.json({ success: true });
   } catch (err) {
@@ -120,7 +166,7 @@ app.put("/api/employees/:id/qr", async (req, res, next) => {
 });
 
 // Update employee
-app.put("/api/employees/:id", async (req, res, next) => {
+app.put("/api/employees/:id", authenticate, adminOnly, async (req: any, res, next) => {
   try {
     if (!dbInitialized) await initialize();
     const { name, username, password, hourly_rate } = req.body;
@@ -132,7 +178,7 @@ app.put("/api/employees/:id", async (req, res, next) => {
 });
 
 // Delete employee
-app.delete("/api/employees/:id", async (req, res, next) => {
+app.delete("/api/employees/:id", authenticate, adminOnly, async (req: any, res, next) => {
   try {
     if (!dbInitialized) await initialize();
     const { id } = req.params;
@@ -145,7 +191,7 @@ app.delete("/api/employees/:id", async (req, res, next) => {
 });
 
 // Settings
-app.get("/api/settings", async (req, res, next) => {
+app.get("/api/settings", authenticate, async (req: any, res, next) => {
   try {
     if (!dbInitialized) await initialize();
     const settings = await query('SELECT * FROM settings') as any[];
@@ -159,7 +205,7 @@ app.get("/api/settings", async (req, res, next) => {
   }
 });
 
-app.put("/api/settings", async (req, res, next) => {
+app.put("/api/settings", authenticate, adminOnly, async (req: any, res, next) => {
   try {
     if (!dbInitialized) await initialize();
     const { clock_in_start, auto_stop_time } = req.body;
@@ -195,10 +241,10 @@ function isTimeInRange(now: Date, startStr: string, endStr: string) {
 }
 
 // Clock In
-app.post("/api/clock-in", async (req, res, next) => {
+app.post("/api/clock-in", authenticate, async (req: any, res, next) => {
   try {
     if (!dbInitialized) await initialize();
-    const { employee_id } = req.body;
+    const employee_id = req.user.id;
     const now = new Date();
     
     const settings = await query('SELECT * FROM settings') as any[];
@@ -227,10 +273,10 @@ app.post("/api/clock-in", async (req, res, next) => {
 });
 
 // Heartbeat
-app.post("/api/heartbeat", async (req, res, next) => {
+app.post("/api/heartbeat", authenticate, async (req: any, res, next) => {
   try {
     if (!dbInitialized) await initialize();
-    const { employee_id } = req.body;
+    const employee_id = req.user.id;
     const now = new Date().toISOString();
     
     // Update heartbeat for active log
@@ -278,10 +324,10 @@ async function autoStopStaleLogs() {
 }
 
 // Clock Out
-app.post("/api/clock-out", async (req, res, next) => {
+app.post("/api/clock-out", authenticate, async (req: any, res, next) => {
   try {
     if (!dbInitialized) await initialize();
-    const { employee_id } = req.body;
+    const employee_id = req.user.id;
     let endTimeDate = new Date();
     
     const activeLog = await queryOne('SELECT * FROM time_logs WHERE employee_id = ? AND end_time IS NULL', [employee_id]) as any;
@@ -330,15 +376,22 @@ app.post("/api/clock-out", async (req, res, next) => {
 });
 
 // Get logs for employee
-app.get("/api/logs/:employeeId", async (req, res, next) => {
+app.get("/api/logs/:employeeId", authenticate, async (req: any, res, next) => {
   try {
     if (!dbInitialized) await initialize();
+    const { employeeId } = req.params;
+
+    // Only allow viewing own logs unless admin
+    if (req.user.id.toString() !== employeeId && req.user.role !== 'admin') {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+
     const logs = await query(`
       SELECT * FROM time_logs 
       WHERE employee_id = ? 
       ORDER BY start_time DESC
       LIMIT 50
-    `, [req.params.employeeId]);
+    `, [employeeId]);
     res.json(logs);
   } catch (err) {
     next(err);
@@ -346,7 +399,7 @@ app.get("/api/logs/:employeeId", async (req, res, next) => {
 });
 
 // Admin: Get all logs
-app.get("/api/admin/logs", async (req, res, next) => {
+app.get("/api/admin/logs", authenticate, adminOnly, async (req: any, res, next) => {
   try {
     if (!dbInitialized) await initialize();
     const logs = await query(`

@@ -22,13 +22,23 @@ export default function App() {
     if (savedUser) {
       try {
         const parsed = JSON.parse(savedUser);
-        // Fetch latest status from server to ensure active_log is correct
-        fetch('/api/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username: parsed.username, password: parsed.password }),
+        if (!parsed.session_token) {
+          localStorage.removeItem('peso_user');
+          setLoading(false);
+          return;
+        }
+
+        // Fetch latest status from server using session token
+        fetch('/api/me', {
+          headers: { 
+            'Content-Type': 'application/json',
+            'x-session-token': parsed.session_token
+          },
         })
-        .then(res => res.json())
+        .then(res => {
+          if (res.status === 401) throw new Error('Unauthorized');
+          return res.json();
+        })
         .then(data => {
           if (data.id) {
             setUser(data);
@@ -38,8 +48,7 @@ export default function App() {
           setLoading(false);
         })
         .catch(() => {
-          setUser(parsed);
-          setView(parsed.role === 'admin' ? 'admin' : 'employee');
+          handleLogout();
           setLoading(false);
         });
       } catch (e) {
@@ -81,17 +90,20 @@ export default function App() {
   };
 
   const refreshUser = async () => {
-    if (!user) return;
+    if (!user?.session_token) return;
     try {
-      const res = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: user.username, password: user.password }),
+      const res = await fetch('/api/me', {
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-session-token': user.session_token
+        },
       });
       if (res.ok) {
         const data = await res.json();
         setUser(data);
         localStorage.setItem('peso_user', JSON.stringify(data));
+      } else if (res.status === 401) {
+        handleLogout();
       }
     } catch (err) {
       console.error('Refresh failed', err);
