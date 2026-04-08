@@ -23,7 +23,13 @@ if (usePostgres) {
 export const query = async (text: string, params: any[] = []) => {
   if (usePostgres) {
     let i = 1;
-    const pgText = text.replace(/\?/g, () => `$${i++}`);
+    let pgText = text.replace(/\?/g, () => `$${i++}`);
+    
+    // Postgres needs RETURNING id to get the new ID back
+    if (pgText.trim().toUpperCase().startsWith('INSERT')) {
+      pgText += ' RETURNING id';
+    }
+    
     const { rows } = await pgPool.query(pgText, params);
     return rows;
   } else {
@@ -33,7 +39,7 @@ export const query = async (text: string, params: any[] = []) => {
       return stmt.all(...params);
     } else {
       const result = stmt.run(...params);
-      return { lastInsertRowid: result.lastInsertRowid, changes: result.changes };
+      return [{ id: result.lastInsertRowid, changes: result.changes }];
     }
   }
 };

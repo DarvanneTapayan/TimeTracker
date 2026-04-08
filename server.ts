@@ -42,8 +42,8 @@ async function startServer() {
   app.post("/api/employees", async (req, res) => {
     const { name, username, password, hourly_rate } = req.body;
     try {
-      const result = await query('INSERT INTO employees (name, username, password, role, hourly_rate) VALUES (?, ?, ?, ?, ?)', [name, username, password, 'employee', hourly_rate]) as any;
-      res.json({ id: result.lastInsertRowid });
+      const rows = await query('INSERT INTO employees (name, username, password, role, hourly_rate) VALUES (?, ?, ?, ?, ?)', [name, username, password, 'employee', hourly_rate]) as any[];
+      res.json({ id: rows[0].id });
     } catch (err: any) {
       if (err.message.includes('UNIQUE constraint failed') || err.message.includes('unique constraint')) {
         res.status(400).json({ error: "Username already exists" });
@@ -140,8 +140,8 @@ async function startServer() {
       return res.status(400).json({ error: "Already clocked in" });
     }
 
-    const result = await query('INSERT INTO time_logs (employee_id, start_time) VALUES (?, ?)', [employee_id, startTime]) as any;
-    res.json({ id: result.lastInsertRowid, start_time: startTime });
+    const result = await query('INSERT INTO time_logs (employee_id, start_time) VALUES (?, ?)', [employee_id, startTime]) as any[];
+    res.json({ id: result[0].id, start_time: startTime });
   });
 
   // Clock Out
