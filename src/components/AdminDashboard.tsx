@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { Users, FileText, Plus, Edit2, Check, X, Settings as SettingsIcon, Save, Trash2 } from 'lucide-react';
-import { format } from 'date-fns';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Users, FileText, Plus, Edit2, Check, X, Settings as SettingsIcon, Save, Trash2, Calendar as CalendarIcon, Filter, Download, ArrowUpRight, DollarSign, Clock } from 'lucide-react';
+import { format, isSameDay, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
+import Calendar from 'react-calendar';
 import { Employee, TimeLog } from '../types';
 import { formatPHP, cn } from '../lib/utils';
+import 'react-calendar/dist/Calendar.css';
 
 export default function AdminDashboard() {
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -17,6 +19,10 @@ export default function AdminDashboard() {
   const [newUsername, setNewUsername] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newRate, setNewRate] = useState('');
+  
+  // Timesheet Filters
+  const [selectedDate, setSelectedDate] = useState<Date | [Date, Date] | null>(new Date());
+  const [employeeFilter, setEmployeeFilter] = useState<string>('all');
 
   useEffect(() => {
     fetchData();
@@ -150,8 +156,35 @@ export default function AdminDashboard() {
     setNewRate(emp.hourly_rate.toString());
   };
 
+  // Filtered logs for the timesheet
+  const filteredLogs = useMemo(() => {
+    return logs.filter(log => {
+      const logDate = new Date(log.start_time);
+      
+      // Date filter
+      let dateMatch = true;
+      if (selectedDate instanceof Date) {
+        dateMatch = isSameDay(logDate, selectedDate);
+      } else if (Array.isArray(selectedDate)) {
+        dateMatch = isWithinInterval(logDate, { start: selectedDate[0], end: selectedDate[1] });
+      }
+
+      // Employee filter
+      const employeeMatch = employeeFilter === 'all' || log.employee_id.toString() === employeeFilter;
+
+      return dateMatch && employeeMatch;
+    });
+  }, [logs, selectedDate, employeeFilter]);
+
+  const stats = useMemo(() => {
+    const totalHours = filteredLogs.reduce((acc, log) => acc + (log.total_hours || 0), 0);
+    const totalPay = filteredLogs.reduce((acc, log) => acc + (log.daily_pay || 0), 0);
+    const logCount = filteredLogs.length;
+    return { totalHours, totalPay, logCount };
+  }, [filteredLogs]);
+
   return (
-    <div className="space-y-12">
+    <div className="space-y-12 pb-20">
       {/* System Settings */}
       <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
         <div className="flex items-center gap-2 mb-6">
@@ -324,58 +357,166 @@ export default function AdminDashboard() {
       </section>
 
       {/* Timesheet Management */}
-      <section>
-        <div className="flex items-center gap-2 mb-6">
-          <FileText className="w-6 h-6 text-slate-600" />
-          <h2 className="text-xl font-bold text-slate-900">Master Timesheet</h2>
+      <section className="space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white shadow-lg">
+              <FileText className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-black text-slate-900">Master Timesheet</h2>
+              <p className="text-slate-500 text-sm">Review and manage employee work hours</p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <select 
+              className="px-4 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-medium text-slate-700"
+              value={employeeFilter}
+              onChange={(e) => setEmployeeFilter(e.target.value)}
+            >
+              <option value="all">All Employees</option>
+              {employees.map(emp => (
+                <option key={emp.id} value={emp.id}>{emp.name}</option>
+              ))}
+            </select>
+            <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl font-bold text-slate-700 hover:bg-slate-50 transition-all">
+              <Download className="w-4 h-4" /> Export
+            </button>
+          </div>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="text-xs uppercase tracking-wider text-slate-400 border-b border-slate-100 bg-slate-50/50">
-                  <th className="px-6 py-4 font-semibold">Employee</th>
-                  <th className="px-6 py-4 font-semibold">Date</th>
-                  <th className="px-6 py-4 font-semibold">Time Range</th>
-                  <th className="px-6 py-4 font-semibold">Hours</th>
-                  <th className="px-6 py-4 font-semibold text-right">Total Pay</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {logs.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-slate-400 italic">No logs recorded yet.</td>
-                  </tr>
-                ) : (
-                  logs.map((log) => (
-                    <tr key={log.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="font-bold text-slate-900">{log.employee_name}</div>
-                        <div className="text-xs text-slate-400">Rate: {formatPHP(log.hourly_rate)}/hr</div>
-                      </td>
-                      <td className="px-6 py-4 text-slate-600">
-                        {format(new Date(log.start_time), 'MMM dd, yyyy')}
-                      </td>
-                      <td className="px-6 py-4 text-slate-500 text-sm">
-                        {format(new Date(log.start_time), 'hh:mm a')} - {log.end_time ? format(new Date(log.end_time), 'hh:mm a') : '...'}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={cn(
-                          "px-2 py-1 rounded-md text-sm font-medium",
-                          log.total_hours && log.total_hours >= 8 ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-700"
-                        )}>
-                          {log.total_hours?.toFixed(2) || '0.00'} hrs
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-right font-bold text-slate-900">
-                        {formatPHP(log.daily_pay || 0)}
-                      </td>
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600">
+                <DollarSign className="w-5 h-5" />
+              </div>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Payout</span>
+            </div>
+            <div className="text-2xl font-black text-slate-900">{formatPHP(stats.totalPay)}</div>
+            <div className="text-xs text-slate-500 mt-1 flex items-center gap-1">
+              <ArrowUpRight className="w-3 h-3 text-green-500" />
+              <span>For selected period</span>
+            </div>
+          </div>
+          
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-10 h-10 bg-amber-50 rounded-lg flex items-center justify-center text-amber-600">
+                <Clock className="w-5 h-5" />
+              </div>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Hours</span>
+            </div>
+            <div className="text-2xl font-black text-slate-900">{stats.totalHours.toFixed(2)} hrs</div>
+            <div className="text-xs text-slate-500 mt-1">Across {stats.logCount} logs</div>
+          </div>
+
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center text-purple-600">
+                <Users className="w-5 h-5" />
+              </div>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Active Logs</span>
+            </div>
+            <div className="text-2xl font-black text-slate-900">{filteredLogs.filter(l => !l.end_time).length}</div>
+            <div className="text-xs text-slate-500 mt-1">Currently clocked in</div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          {/* Calendar Sidebar */}
+          <div className="lg:col-span-4 space-y-6">
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+              <div className="flex items-center gap-2 mb-4">
+                <CalendarIcon className="w-4 h-4 text-blue-600" />
+                <h3 className="font-bold text-slate-900">Select Date</h3>
+              </div>
+              <Calendar 
+                onChange={(val) => setSelectedDate(val as Date | [Date, Date])} 
+                value={selectedDate}
+                className="rounded-xl border-none"
+                selectRange={true}
+              />
+              <div className="mt-4 pt-4 border-t border-slate-100">
+                <button 
+                  onClick={() => setSelectedDate(new Date())}
+                  className="text-sm font-bold text-blue-600 hover:text-blue-700"
+                >
+                  Reset to Today
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-slate-900 p-6 rounded-2xl text-white shadow-xl">
+              <h4 className="font-bold mb-2">Pro Tip</h4>
+              <p className="text-slate-400 text-sm leading-relaxed">
+                Select a range on the calendar to see cumulative totals for a week or month.
+              </p>
+            </div>
+          </div>
+
+          {/* Logs Table */}
+          <div className="lg:col-span-8">
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+              <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Filter className="w-4 h-4 text-slate-400" />
+                  <span className="text-sm font-bold text-slate-700">
+                    {Array.isArray(selectedDate) 
+                      ? `${format(selectedDate[0], 'MMM dd')} - ${format(selectedDate[1], 'MMM dd')}`
+                      : selectedDate ? format(selectedDate, 'MMMM dd, yyyy') : 'All Logs'}
+                  </span>
+                </div>
+                <span className="text-xs font-medium text-slate-400">{filteredLogs.length} entries found</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="text-[10px] uppercase tracking-widest text-slate-400 border-b border-slate-100">
+                      <th className="px-6 py-4 font-bold">Employee</th>
+                      <th className="px-6 py-4 font-bold">Time</th>
+                      <th className="px-6 py-4 font-bold">Duration</th>
+                      <th className="px-6 py-4 font-bold text-right">Pay</th>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredLogs.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="px-6 py-12 text-center text-slate-400 italic">No logs found for this selection.</td>
+                      </tr>
+                    ) : (
+                      filteredLogs.map((log) => (
+                        <tr key={log.id} className="hover:bg-slate-50 transition-colors group">
+                          <td className="px-6 py-4">
+                            <div className="font-bold text-slate-900 group-hover:text-blue-600 transition-colors">{log.employee_name}</div>
+                            <div className="text-[10px] text-slate-400 uppercase tracking-tighter">Rate: {formatPHP(log.hourly_rate)}/hr</div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="text-sm text-slate-600 font-medium">
+                              {format(new Date(log.start_time), 'hh:mm a')} - {log.end_time ? format(new Date(log.end_time), 'hh:mm a') : '...'}
+                            </div>
+                            <div className="text-[10px] text-slate-400">{format(new Date(log.start_time), 'MMM dd')}</div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={cn(
+                              "px-2 py-1 rounded-lg text-xs font-bold",
+                              log.total_hours && log.total_hours >= 8 ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-700"
+                            )}>
+                              {log.total_hours?.toFixed(2) || '0.00'} hrs
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-right font-black text-slate-900">
+                            {formatPHP(log.daily_pay || 0)}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
       </section>
