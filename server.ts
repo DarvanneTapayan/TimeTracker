@@ -59,6 +59,20 @@ async function startServer() {
     res.json({ success: true });
   });
 
+  // Delete employee
+  app.delete("/api/employees/:id", (req, res) => {
+    const { id } = req.params;
+    try {
+      // Delete logs first due to foreign key
+      db.prepare('DELETE FROM time_logs WHERE employee_id = ?').run(id);
+      db.prepare('DELETE FROM employees WHERE id = ?').run(id);
+      res.json({ success: true });
+    } catch (err) {
+      console.error('Failed to delete employee', err);
+      res.status(500).json({ error: "Failed to delete employee" });
+    }
+  });
+
   // Settings
   app.get("/api/settings", (req, res) => {
     const settings = db.prepare('SELECT * FROM settings').all() as any[];
