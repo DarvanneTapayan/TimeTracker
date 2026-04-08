@@ -161,7 +161,8 @@ export default function App() {
           </form>
           
           <div className="mt-8 text-center text-slate-400 text-sm">
-            <p>Don't forget to clock in bombels!</p>
+            <p>Admin: admin / admin123</p>
+            <p>Employee: juan / password123</p>
           </div>
         </div>
       </div>

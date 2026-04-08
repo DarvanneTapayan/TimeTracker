@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Clock, LogOut, Play, Square, History } from 'lucide-react';
-import { format } from 'date-fns';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { Clock, LogOut, Play, Square, History, TrendingUp, Calendar, DollarSign, ArrowUpRight, CheckCircle2, AlertCircle } from 'lucide-react';
+import { format, startOfWeek, endOfWeek, isWithinInterval } from 'date-fns';
+import { motion, AnimatePresence } from 'motion/react';
 import { EmployeeWithStatus, TimeLog } from '../types';
 import { formatPHP, cn } from '../lib/utils';
 
@@ -175,119 +176,251 @@ export default function EmployeePortal({ employee, onRefresh }: EmployeePortalPr
     }
   };
 
+  const weeklyStats = useMemo(() => {
+    const now = new Date();
+    const start = startOfWeek(now, { weekStartsOn: 1 });
+    const end = endOfWeek(now, { weekStartsOn: 1 });
+
+    const weeklyLogs = logs.filter(log => 
+      isWithinInterval(new Date(log.start_time), { start, end })
+    );
+
+    const totalHours = weeklyLogs.reduce((acc, log) => acc + (log.total_hours || 0), 0);
+    const totalPay = weeklyLogs.reduce((acc, log) => acc + (log.daily_pay || 0), 0);
+    
+    return { totalHours, totalPay, count: weeklyLogs.length };
+  }, [logs]);
+
   return (
-    <div className="space-y-8">
-      {/* Status Card */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div>
-            <h2 className="text-2xl font-bold text-slate-900">Welcome, {employee.name}</h2>
-            <p className="text-slate-500">Hourly Rate: {formatPHP(employee.hourly_rate)}</p>
-            {!employee.active_log && (
-              <p className={cn(
-                "text-sm mt-2 font-medium",
-                isClockInAllowed() ? "text-green-600" : "text-amber-600"
-              )}>
-                {isClockInAllowed() 
-                  ? "✓ Clock-in is currently open." 
-                  : `ⓘ Clock-in is allowed from ${settings.clock_in_start} to ${settings.auto_stop_time}.`}
-              </p>
-            )}
+    <div className="space-y-8 pb-12">
+      {/* Stats Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600">
+              <TrendingUp className="w-6 h-6" />
+            </div>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Weekly Earnings</span>
           </div>
-          
-          <div className="flex items-center gap-4">
-            {employee.active_log ? (
-              <div className="flex flex-col items-end mr-4">
-                <span className="text-sm font-medium text-blue-600 animate-pulse flex items-center gap-1">
-                  <Clock className="w-4 h-4" /> Active Session
-                </span>
-                <span className="text-4xl font-mono font-bold text-slate-900">
-                  {formatElapsedTime(elapsedTime)}
-                </span>
+          <div className="text-3xl font-black text-slate-900">{formatPHP(weeklyStats.totalPay)}</div>
+          <p className="text-xs text-slate-500 mt-2 flex items-center gap-1">
+            <ArrowUpRight className="w-3 h-3 text-green-500" />
+            Estimated for this week
+          </p>
+        </motion.div>
+
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-600">
+              <Clock className="w-6 h-6" />
+            </div>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Hours Logged</span>
+          </div>
+          <div className="text-3xl font-black text-slate-900">{weeklyStats.totalHours.toFixed(1)}h</div>
+          <p className="text-xs text-slate-500 mt-2">Across {weeklyStats.count} shifts this week</p>
+        </motion.div>
+
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 bg-purple-50 rounded-2xl flex items-center justify-center text-purple-600">
+              <DollarSign className="w-6 h-6" />
+            </div>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Hourly Rate</span>
+          </div>
+          <div className="text-3xl font-black text-slate-900">{formatPHP(employee.hourly_rate)}</div>
+          <p className="text-xs text-slate-500 mt-2">Standard employee rate</p>
+        </motion.div>
+      </div>
+
+      {/* Status Card */}
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.3 }}
+        className={cn(
+          "rounded-[2.5rem] p-1 shadow-2xl transition-all duration-500",
+          employee.active_log 
+            ? "bg-gradient-to-br from-blue-600 to-indigo-700 shadow-blue-200" 
+            : "bg-white border border-slate-200 shadow-slate-100"
+        )}
+      >
+        <div className={cn(
+          "rounded-[2.4rem] p-8 md:p-10",
+          employee.active_log ? "bg-transparent text-white" : "bg-white text-slate-900"
+        )}>
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-10">
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className={cn(
+                  "px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest",
+                  employee.active_log ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500"
+                )}>
+                  {employee.active_log ? "Currently Working" : "Off Duty"}
+                </div>
+                {employee.active_log && (
+                  <span className="flex h-2 w-2 rounded-full bg-green-400 animate-ping" />
+                )}
               </div>
-            ) : (
-              <span className="text-slate-400 font-medium mr-4">Not Clocked In</span>
-            )}
-            
-            <div className="flex gap-3">
-              {!employee.active_log ? (
-                <button
-                  onClick={handleClockIn}
-                  disabled={!isClockInAllowed()}
-                  className={cn(
-                    "flex items-center gap-2 px-8 py-4 rounded-xl font-bold transition-all active:scale-95 shadow-lg",
-                    isClockInAllowed()
-                      ? "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200"
-                      : "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
-                  )}
-                >
-                  <Play className="w-5 h-5 fill-current" /> Clock In
-                </button>
-              ) : (
-                <button
-                  onClick={handleClockOut}
-                  className="flex items-center gap-2 px-8 py-4 rounded-xl font-bold transition-all active:scale-95 shadow-lg bg-red-500 hover:bg-red-600 text-white shadow-red-200"
-                >
-                  <Square className="w-5 h-5 fill-current" /> Stop / Clock Out
-                </button>
+              
+              <div>
+                <h2 className="text-4xl font-black tracking-tight">
+                  {employee.active_log ? "You're on the clock" : `Hello, ${employee.name.split(' ')[0]}!`}
+                </h2>
+                <p className={cn(
+                  "text-lg mt-2 font-medium",
+                  employee.active_log ? "text-blue-100" : "text-slate-500"
+                )}>
+                  {employee.active_log 
+                    ? `Started at ${format(new Date(employee.active_log.start_time), 'hh:mm a')}`
+                    : isClockInAllowed() 
+                      ? "Ready to start your shift?" 
+                      : `Next shift available at ${settings.clock_in_start}`}
+                </p>
+              </div>
+
+              {!employee.active_log && !isClockInAllowed() && (
+                <div className="flex items-center gap-2 text-amber-600 bg-amber-50 px-4 py-2 rounded-xl w-fit">
+                  <AlertCircle className="w-4 h-4" />
+                  <span className="text-xs font-bold">Outside allowed hours</span>
+                </div>
               )}
+            </div>
+            
+            <div className="flex flex-col items-center lg:items-end gap-6">
+              {employee.active_log && (
+                <div className="text-center lg:text-right">
+                  <div className="text-6xl md:text-7xl font-mono font-black tracking-tighter mb-2">
+                    {formatElapsedTime(elapsedTime)}
+                  </div>
+                  <div className="text-blue-200 text-sm font-bold uppercase tracking-widest">Elapsed Time</div>
+                </div>
+              )}
+              
+              <div className="flex gap-4 w-full lg:w-auto">
+                {!employee.active_log ? (
+                  <button
+                    onClick={handleClockIn}
+                    disabled={!isClockInAllowed()}
+                    className={cn(
+                      "flex-1 lg:flex-none flex items-center justify-center gap-3 px-10 py-5 rounded-2xl font-black text-lg transition-all active:scale-95 shadow-xl",
+                      isClockInAllowed()
+                        ? "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200"
+                        : "bg-slate-100 text-slate-400 cursor-not-allowed shadow-none"
+                    )}
+                  >
+                    <Play className="w-6 h-6 fill-current" /> Start Shift
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleClockOut}
+                    className="flex-1 lg:flex-none flex items-center justify-center gap-3 px-10 py-5 rounded-2xl font-black text-lg transition-all active:scale-95 shadow-xl bg-white text-blue-600 hover:bg-blue-50"
+                  >
+                    <Square className="w-6 h-6 fill-current" /> Finish Work
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
 
-      {/* Weekly Logs */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
-          <History className="w-5 h-5 text-slate-400" />
-          <h3 className="font-bold text-slate-700">Recent Logs (Past 7 Days)</h3>
+      {/* Recent Logs Section */}
+      <div className="space-y-6">
+        <div className="flex items-center justify-between px-2">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white">
+              <History className="w-5 h-5" />
+            </div>
+            <h3 className="text-xl font-black text-slate-900">Recent Activity</h3>
+          </div>
+          <button 
+            onClick={fetchLogs}
+            className="text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors"
+          >
+            Refresh Logs
+          </button>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="text-xs uppercase tracking-wider text-slate-400 border-b border-slate-100">
-                <th className="px-6 py-4 font-semibold">Date</th>
-                <th className="px-6 py-4 font-semibold">Start</th>
-                <th className="px-6 py-4 font-semibold">End</th>
-                <th className="px-6 py-4 font-semibold">Hours (Capped)</th>
-                <th className="px-6 py-4 font-semibold text-right">Pay</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {logs.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-slate-400 italic">
-                    No logs found for this week.
-                  </td>
-                </tr>
-              ) : (
-                logs.map((log) => (
-                  <tr key={log.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4 font-medium text-slate-700">
-                      {format(new Date(log.start_time), 'MMM dd, yyyy')}
-                    </td>
-                    <td className="px-6 py-4 text-slate-600">
-                      {format(new Date(log.start_time), 'hh:mm a')}
-                    </td>
-                    <td className="px-6 py-4 text-slate-600">
-                      {log.end_time ? format(new Date(log.end_time), 'hh:mm a') : '--:--'}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={cn(
-                        "px-2 py-1 rounded-md text-sm font-medium",
-                        log.total_hours && log.total_hours >= 8 ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-700"
+
+        <div className="grid grid-cols-1 gap-4">
+          <AnimatePresence mode="popLayout">
+            {logs.length === 0 ? (
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="bg-white rounded-3xl border border-dashed border-slate-300 p-12 text-center"
+              >
+                <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Calendar className="w-8 h-8 text-slate-300" />
+                </div>
+                <h4 className="font-bold text-slate-900">No logs yet</h4>
+                <p className="text-slate-500 text-sm">Your shift history will appear here.</p>
+              </motion.div>
+            ) : (
+              logs.map((log, index) => (
+                <motion.div
+                  key={log.id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  className="group bg-white rounded-3xl border border-slate-200 p-6 hover:border-blue-500 hover:shadow-xl hover:shadow-blue-50 transition-all duration-300"
+                >
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div className="flex items-center gap-5">
+                      <div className={cn(
+                        "w-14 h-14 rounded-2xl flex items-center justify-center transition-colors",
+                        log.end_time ? "bg-green-50 text-green-600" : "bg-blue-50 text-blue-600"
                       )}>
-                        {log.total_hours?.toFixed(2) || '0.00'} hrs
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right font-bold text-slate-900">
-                      {formatPHP(log.daily_pay || 0)}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                        {log.end_time ? <CheckCircle2 className="w-7 h-7" /> : <Clock className="w-7 h-7 animate-pulse" />}
+                      </div>
+                      <div>
+                        <div className="text-lg font-black text-slate-900">
+                          {format(new Date(log.start_time), 'EEEE, MMMM dd')}
+                        </div>
+                        <div className="flex items-center gap-2 text-slate-500 font-medium">
+                          <span>{format(new Date(log.start_time), 'hh:mm a')}</span>
+                          <span>→</span>
+                          <span>{log.end_time ? format(new Date(log.end_time), 'hh:mm a') : 'In Progress'}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between md:justify-end gap-10 border-t md:border-t-0 pt-4 md:pt-0">
+                      <div className="text-center md:text-right">
+                        <div className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-1">Duration</div>
+                        <div className={cn(
+                          "text-xl font-black",
+                          log.total_hours && log.total_hours >= 8 ? "text-amber-600" : "text-slate-900"
+                        )}>
+                          {log.total_hours?.toFixed(2) || '0.00'} <span className="text-xs">hrs</span>
+                        </div>
+                      </div>
+                      
+                      <div className="text-right">
+                        <div className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-1">Earnings</div>
+                        <div className="text-xl font-black text-blue-600">
+                          {formatPHP(log.daily_pay || 0)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              ))
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </div>
