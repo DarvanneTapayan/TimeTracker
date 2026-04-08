@@ -88,7 +88,7 @@ const authenticate = async (req: any, res: any, next: any) => {
 
   try {
     if (!dbInitialized) await initialize();
-    const user = await queryOne('SELECT id, name, username, role, hourly_rate, qr_code FROM employees WHERE session_token = ?', [token]);
+    const user = await queryOne('SELECT id, name, username, role, hourly_rate, qr_code, session_token FROM employees WHERE session_token = ?', [token]);
     if (!user) return res.status(401).json({ error: "Session expired or logged in elsewhere" });
     
     req.user = user;

@@ -257,81 +257,133 @@ export default function EmployeePortal({ employee, onRefresh }: EmployeePortalPr
 
   return (
     <div className="space-y-8 pb-12">
-      {/* Header with Settings Toggle */}
+      {/* Header */}
       <div className="flex items-center justify-between px-2">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg">
             <Clock className="w-5 h-5" />
           </div>
-          <h1 className="text-2xl font-black text-slate-900">Employee Portal</h1>
+          <h1 className="text-2xl font-black text-slate-900">My Portal</h1>
         </div>
         <div className="flex items-center gap-2">
           <button 
-            onClick={() => setShowSettings(!showSettings)}
-            className={cn(
-              "p-2.5 rounded-xl transition-all shadow-sm",
-              showSettings ? "bg-slate-900 text-white" : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
-            )}
+            onClick={() => setShowSettings(true)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all shadow-sm"
           >
-            <Settings className="w-5 h-5" />
+            <Settings className="w-4 h-4" />
+            Settings
           </button>
         </div>
       </div>
 
+      {/* Settings Sidebar Drawer */}
       <AnimatePresence>
         {showSettings && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="overflow-hidden"
-          >
-            <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <QrCode className="w-5 h-5 text-blue-600" />
-                  <h3 className="font-bold text-slate-900">Payment Settings</h3>
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowSettings(false)}
+              className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100]"
+            />
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl z-[101] overflow-y-auto"
+            >
+              <div className="p-8">
+                <div className="flex items-center justify-between mb-8">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-900">
+                      <Settings className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-black text-slate-900">Settings</h3>
+                      <p className="text-xs text-slate-500 font-medium uppercase tracking-widest">Employee Preferences</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => setShowSettings(false)}
+                    className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
+                  >
+                    <XIcon className="w-6 h-6" />
+                  </button>
                 </div>
-                <button onClick={() => setShowSettings(false)} className="text-slate-400 hover:text-slate-600">
-                  <XIcon className="w-5 h-5" />
-                </button>
+
+                <div className="space-y-8">
+                  <section>
+                    <div className="flex items-center gap-2 mb-4">
+                      <QrCode className="w-4 h-4 text-blue-600" />
+                      <h4 className="font-bold text-slate-900">Payment QR Code</h4>
+                    </div>
+                    <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 space-y-4">
+                      <p className="text-xs text-slate-500 leading-relaxed">
+                        Upload your Maribank, GCash, or Maya QR code. This will be included in your generated receipts for easier payment processing.
+                      </p>
+                      
+                      <div className="flex flex-col items-center gap-4">
+                        {qrCode ? (
+                          <div className="relative group">
+                            <img src={qrCode} alt="QR Code" className="w-48 h-48 object-contain rounded-2xl shadow-lg bg-white p-2" />
+                            <button 
+                              onClick={() => { setQrCode(null); /* Also update DB */ }}
+                              className="absolute -top-2 -right-2 bg-red-500 text-white p-1.5 rounded-full shadow-lg hover:bg-red-600 transition-colors"
+                            >
+                              <XIcon className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="w-48 h-48 bg-white border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center text-center p-4">
+                            <QrCode className="w-10 h-10 text-slate-200 mb-2" />
+                            <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">No QR Code</p>
+                          </div>
+                        )}
+
+                        <label className="w-full">
+                          <div className="w-full py-3 bg-white border border-slate-200 rounded-xl text-center text-sm font-bold text-slate-600 cursor-pointer hover:bg-slate-50 transition-colors">
+                            {qrCode ? 'Change QR Code' : 'Upload QR Code'}
+                          </div>
+                          <input type="file" className="hidden" accept="image/*" onChange={handleQrUpload} />
+                        </label>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section>
+                    <div className="flex items-center gap-2 mb-4">
+                      <History className="w-4 h-4 text-purple-600" />
+                      <h4 className="font-bold text-slate-900">Shift Preferences</h4>
+                    </div>
+                    <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-slate-600">Auto-stop Time</span>
+                        <span className="text-sm font-bold text-slate-900">{settings.auto_stop_time}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-slate-600">Clock-in Start</span>
+                        <span className="text-sm font-bold text-slate-900">{settings.clock_in_start}</span>
+                      </div>
+                      <p className="text-[10px] text-slate-400 italic">
+                        * These settings are managed by the administrator.
+                      </p>
+                    </div>
+                  </section>
+                </div>
+
+                <div className="mt-12 pt-8 border-t border-slate-100">
+                  <button 
+                    onClick={() => setShowSettings(false)}
+                    className="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl hover:bg-slate-800 transition-all"
+                  >
+                    Done
+                  </button>
+                </div>
               </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="space-y-4">
-                  <p className="text-sm text-slate-500 leading-relaxed">
-                    Upload your Maribank, GCash, or Maya QR code. This will be included in your generated receipts for easier payment processing.
-                  </p>
-                  <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-slate-200 rounded-2xl cursor-pointer hover:bg-slate-50 hover:border-blue-400 transition-all group">
-                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                      <Upload className="w-8 h-8 text-slate-400 group-hover:text-blue-500 mb-2" />
-                      <p className="text-sm text-slate-500 font-medium">Click to upload QR Code</p>
-                    </div>
-                    <input type="file" className="hidden" accept="image/*" onChange={handleQrUpload} />
-                  </label>
-                </div>
-                
-                <div className="flex flex-col items-center justify-center bg-slate-50 rounded-2xl p-4 border border-slate-100">
-                  {qrCode ? (
-                    <div className="relative group">
-                      <img src={qrCode} alt="QR Code" className="w-40 h-40 object-contain rounded-lg shadow-md" />
-                      <button 
-                        onClick={() => { setQrCode(null); /* Also update DB */ }}
-                        className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <XIcon className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="text-center space-y-2">
-                      <QrCode className="w-12 h-12 text-slate-200 mx-auto" />
-                      <p className="text-xs font-bold text-slate-300 uppercase tracking-widest">No QR Code Uploaded</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </motion.div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
       {/* Stats Overview */}
