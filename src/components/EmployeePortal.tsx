@@ -112,8 +112,12 @@ export default function EmployeePortal({ employee, onRefresh }: EmployeePortalPr
   const fetchLogs = async () => {
     try {
       const res = await fetchWithAuth(`/api/logs/${employee.id}`);
-      const data = await res.json();
-      setLogs(data);
+      if (res && res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setLogs(data);
+        }
+      }
     } catch (err) {
       console.error('Failed to fetch logs', err);
     }
@@ -122,9 +126,11 @@ export default function EmployeePortal({ employee, onRefresh }: EmployeePortalPr
   const fetchSettings = async () => {
     try {
       const res = await fetchWithAuth('/api/settings');
-      const data = await res.json();
-      if (data && data.clock_in_start) {
-        setSettings(data);
+      if (res && res.ok) {
+        const data = await res.json();
+        if (data && data.clock_in_start) {
+          setSettings(data);
+        }
       }
     } catch (err) {
       console.error('Failed to fetch settings', err);
@@ -169,6 +175,17 @@ export default function EmployeePortal({ employee, onRefresh }: EmployeePortalPr
     }
   };
 
+  const safeFormat = (dateStr: string | undefined, formatStr: string, fallback: string = '...') => {
+    if (!dateStr) return fallback;
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return fallback;
+    try {
+      return format(date, formatStr);
+    } catch (e) {
+      return fallback;
+    }
+  };
+
   const formatElapsedTime = (ms: number) => {
     if (isNaN(ms) || ms < 0) return "00:00:00";
     // Cap at 8 hours
@@ -183,7 +200,7 @@ export default function EmployeePortal({ employee, onRefresh }: EmployeePortalPr
   };
 
   const isClockInAllowed = () => {
-    if (!settings.clock_in_start || !settings.auto_stop_time) return false;
+    if (!settings || !settings.clock_in_start || !settings.auto_stop_time) return false;
     const now = new Date();
     const [sH, sM] = settings.clock_in_start.split(':').map(Number);
     const [eH, eM] = settings.auto_stop_time.split(':').map(Number);
@@ -206,7 +223,8 @@ export default function EmployeePortal({ employee, onRefresh }: EmployeePortalPr
     const start = startOfWeek(now, { weekStartsOn: 1 });
     const end = endOfWeek(now, { weekStartsOn: 1 });
 
-    const weeklyLogs = logs.filter(log => 
+    const safeLogs = Array.isArray(logs) ? logs : [];
+    const weeklyLogs = safeLogs.filter(log => 
       isWithinInterval(new Date(log.start_time), { start, end })
     );
 
@@ -409,7 +427,7 @@ export default function EmployeePortal({ employee, onRefresh }: EmployeePortalPr
                     employee.active_log ? "text-blue-100" : "text-slate-500"
                   )}>
                     {employee.active_log 
-                      ? `Started at ${format(new Date(employee.active_log.start_time), 'hh:mm a')}`
+                      ? `Started at ${safeFormat(employee.active_log.start_time, 'hh:mm a')}`
                       : isClockInAllowed() 
                         ? "Ready to start your shift?" 
                         : `Next shift available at ${settings.clock_in_start}`}
@@ -492,7 +510,7 @@ export default function EmployeePortal({ employee, onRefresh }: EmployeePortalPr
 
         <div className="grid grid-cols-1 gap-4">
           <AnimatePresence mode="popLayout">
-            {logs.length === 0 ? (
+            {(!Array.isArray(logs) || logs.length === 0) ? (
               <motion.div 
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -523,12 +541,12 @@ export default function EmployeePortal({ employee, onRefresh }: EmployeePortalPr
                       </div>
                       <div>
                         <div className="text-lg font-black text-slate-900">
-                          {format(new Date(log.start_time), 'EEEE, MMMM dd')}
+                          {safeFormat(log.start_time, 'EEEE, MMMM dd')}
                         </div>
                         <div className="flex items-center gap-2 text-slate-500 font-medium">
-                          <span>{format(new Date(log.start_time), 'hh:mm a')}</span>
+                          <span>{safeFormat(log.start_time, 'hh:mm a')}</span>
                           <span>→</span>
-                          <span>{log.end_time ? format(new Date(log.end_time), 'hh:mm a') : 'In Progress'}</span>
+                          <span>{log.end_time ? safeFormat(log.end_time, 'hh:mm a') : 'In Progress'}</span>
                         </div>
                       </div>
                     </div>

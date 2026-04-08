@@ -111,8 +111,10 @@ function AppContent() {
       });
       if (res.ok) {
         const data = await res.json();
-        setUser(data);
-        localStorage.setItem('peso_user', JSON.stringify(data));
+        if (data && data.id) {
+          setUser(data);
+          localStorage.setItem('peso_user', JSON.stringify(data));
+        }
       } else if (res.status === 401) {
         handleLogout();
       }

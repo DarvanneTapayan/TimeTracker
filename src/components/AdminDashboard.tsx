@@ -57,14 +57,33 @@ export default function AdminDashboard() {
     }
   };
 
+  const safeFormat = (dateStr: string | undefined, formatStr: string, fallback: string = '...') => {
+    if (!dateStr) return fallback;
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return fallback;
+    try {
+      return format(date, formatStr);
+    } catch (e) {
+      return fallback;
+    }
+  };
+
   const fetchData = async () => {
     try {
       const [empRes, logRes] = await Promise.all([
         fetchWithAuth('/api/employees'),
         fetchWithAuth('/api/admin/logs')
       ]);
-      setEmployees(await empRes.json());
-      setLogs(await logRes.json());
+      
+      if (empRes && empRes.ok) {
+        const empData = await empRes.json();
+        if (Array.isArray(empData)) setEmployees(empData);
+      }
+      
+      if (logRes && logRes.ok) {
+        const logData = await logRes.json();
+        if (Array.isArray(logData)) setLogs(logData);
+      }
     } catch (err) {
       console.error('Failed to fetch admin data', err);
     }
@@ -179,7 +198,8 @@ export default function AdminDashboard() {
 
   // Filtered logs for the timesheet
   const filteredLogs = useMemo(() => {
-    return logs.filter(log => {
+    const safeLogs = Array.isArray(logs) ? logs : [];
+    return safeLogs.filter(log => {
       const logDate = new Date(log.start_time);
       
       // Date filter
@@ -254,9 +274,9 @@ export default function AdminDashboard() {
     
     // Table
     const tableData = filteredLogs.map(log => [
-      format(new Date(log.start_time), 'MMM dd, yyyy'),
-      format(new Date(log.start_time), 'hh:mm a'),
-      log.end_time ? format(new Date(log.end_time), 'hh:mm a') : 'In Progress',
+      safeFormat(log.start_time, 'MMM dd, yyyy'),
+      safeFormat(log.start_time, 'hh:mm a'),
+      log.end_time ? safeFormat(log.end_time, 'hh:mm a') : 'In Progress',
       `${log.total_hours?.toFixed(2) || '0.00'} hrs`,
       formatPHP(log.daily_pay || 0)
     ]);
@@ -394,7 +414,7 @@ export default function AdminDashboard() {
                   </td>
                 </tr>
               )}
-              {employees.map((emp) => (
+              {(Array.isArray(employees) ? employees : []).map((emp) => (
                 <tr key={emp.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-6 py-4 text-slate-500 font-mono text-sm">#{emp.id}</td>
                   <td className="px-6 py-4 font-medium text-slate-900">
@@ -478,7 +498,7 @@ export default function AdminDashboard() {
               onChange={(e) => setEmployeeFilter(e.target.value)}
             >
               <option value="all">All Employees</option>
-              {employees.map(emp => (
+              {(Array.isArray(employees) ? employees : []).map(emp => (
                 <option key={emp.id} value={emp.id}>{emp.name}</option>
               ))}
             </select>
@@ -534,7 +554,7 @@ export default function AdminDashboard() {
               </div>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Active Logs</span>
             </div>
-            <div className="text-2xl font-black text-slate-900">{filteredLogs.filter(l => !l.end_time).length}</div>
+            <div className="text-2xl font-black text-slate-900">{(Array.isArray(filteredLogs) ? filteredLogs : []).filter(l => !l.end_time).length}</div>
             <div className="text-xs text-slate-500 mt-1">Currently clocked in</div>
           </div>
         </div>
@@ -596,12 +616,12 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {filteredLogs.length === 0 ? (
+                    {(Array.isArray(filteredLogs) ? filteredLogs : []).length === 0 ? (
                       <tr>
                         <td colSpan={4} className="px-6 py-12 text-center text-slate-400 italic">No logs found for this selection.</td>
                       </tr>
                     ) : (
-                      filteredLogs.map((log) => (
+                      (Array.isArray(filteredLogs) ? filteredLogs : []).map((log) => (
                         <tr key={log.id} className="hover:bg-slate-50 transition-colors group">
                           <td className="px-6 py-4">
                             <div className="font-bold text-slate-900 group-hover:text-blue-600 transition-colors">{log.employee_name}</div>
@@ -609,9 +629,9 @@ export default function AdminDashboard() {
                           </td>
                           <td className="px-6 py-4">
                             <div className="text-sm text-slate-600 font-medium">
-                              {format(new Date(log.start_time), 'hh:mm a')} - {log.end_time ? format(new Date(log.end_time), 'hh:mm a') : '...'}
+                              {safeFormat(log.start_time, 'hh:mm a')} - {log.end_time ? safeFormat(log.end_time, 'hh:mm a') : '...'}
                             </div>
-                            <div className="text-[10px] text-slate-400">{format(new Date(log.start_time), 'MMM dd')}</div>
+                            <div className="text-[10px] text-slate-400">{safeFormat(log.start_time, 'MMM dd')}</div>
                           </td>
                           <td className="px-6 py-4">
                             <span className={cn(
