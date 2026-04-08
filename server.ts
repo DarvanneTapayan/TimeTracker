@@ -253,12 +253,11 @@ app.post("/api/clock-in", authenticate, async (req: any, res, next) => {
       auto_stop_time: '07:00'
     });
     
-    // User requested to be able to clock in anytime
-    // if (!isTimeInRange(now, config.clock_in_start, config.auto_stop_time)) {
-    //   return res.status(400).json({ 
-    //     error: `Clock-in is only allowed between ${config.clock_in_start} and ${config.auto_stop_time}.` 
-    //   });
-    // }
+    if (!isTimeInRange(now, config.clock_in_start, config.auto_stop_time)) {
+      return res.status(400).json({ 
+        error: `Clock-in is only allowed between ${config.clock_in_start} and ${config.auto_stop_time}.` 
+      });
+    }
 
     const startTime = now.toISOString();
     const existing = await queryOne('SELECT id FROM time_logs WHERE employee_id = ? AND end_time IS NULL', [employee_id]);

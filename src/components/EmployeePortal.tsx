@@ -228,8 +228,22 @@ export default function EmployeePortal({
   };
 
   const isClockInAllowed = () => {
-    // User requested to be able to clock in anytime
-    return true;
+    if (!settings || !settings.clock_in_start || !settings.auto_stop_time) return false;
+    const now = currentTime;
+    const [sH, sM] = settings.clock_in_start.split(':').map(Number);
+    const [eH, eM] = settings.auto_stop_time.split(':').map(Number);
+    const nowH = now.getHours();
+    const nowM = now.getMinutes();
+
+    const startMin = sH * 60 + sM;
+    const endMin = eH * 60 + eM;
+    const nowMin = nowH * 60 + nowM;
+
+    if (startMin <= endMin) {
+      return nowMin >= startMin && nowMin <= endMin;
+    } else {
+      return nowMin >= startMin || nowMin <= endMin;
+    }
   };
 
   const weeklyStats = useMemo(() => {
@@ -485,7 +499,9 @@ export default function EmployeePortal({
                   )}>
                     {employee.active_log 
                       ? `Started at ${safeFormat(employee.active_log.start_time, 'hh:mm a')} • Auto-stop: ${settings.auto_stop_time}`
-                      : "Ready to start your shift?"}
+                      : isClockInAllowed() 
+                        ? "Ready to start your shift?" 
+                        : `Shift starts at ${settings.clock_in_start}`}
                   </p>
                   <div className={cn(
                     "h-1 w-1 rounded-full",
