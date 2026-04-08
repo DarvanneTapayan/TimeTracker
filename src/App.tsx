@@ -216,10 +216,31 @@ function AppContent() {
           <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-200 dark:shadow-none">
             <Clock className="w-6 h-6" />
           </div>
-          <h1 className="text-xl font-black tracking-tight text-slate-900 dark:text-white">TImeTracker</h1>
+          <h1 className="text-xl font-black tracking-tight text-slate-900 dark:text-white">TimeTracker</h1>
         </div>
 
         <div className="space-y-2">
+          <div className="px-4 py-2 mb-2">
+            <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                {darkMode ? <Moon className="w-4 h-4 text-blue-400" /> : <Sun className="w-4 h-4 text-amber-500" />}
+                <span className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Theme</span>
+              </div>
+              <button 
+                onClick={() => setDarkMode(!darkMode)}
+                className={cn(
+                  "w-10 h-6 rounded-full p-1 transition-colors duration-300 flex items-center",
+                  darkMode ? "bg-blue-600" : "bg-slate-200 dark:bg-slate-700"
+                )}
+              >
+                <div className={cn(
+                  "w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-300",
+                  darkMode ? "translate-x-4" : "translate-x-0"
+                )} />
+              </button>
+            </div>
+          </div>
+
           {user.role === 'employee' && (
             <>
               <button
@@ -283,9 +304,17 @@ function AppContent() {
         <div className="lg:hidden flex items-center justify-between mb-8">
           <div className="flex items-center gap-2">
             <Clock className="w-8 h-8 text-blue-600" />
-            <span className="font-black text-xl dark:text-white">TImeTracker</span>
+            <span className="font-black text-xl dark:text-white">TimeTracker</span>
           </div>
-          <button onClick={handleLogout} className="p-2 bg-red-50 dark:bg-red-900/20 text-red-500 rounded-lg"><LogOut className="w-5 h-5" /></button>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setDarkMode(!darkMode)}
+              className="p-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-lg"
+            >
+              {darkMode ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+            </button>
+            <button onClick={handleLogout} className="p-2 bg-red-50 dark:bg-red-900/20 text-red-500 rounded-lg"><LogOut className="w-5 h-5" /></button>
+          </div>
         </div>
 
         {/* View Header */}

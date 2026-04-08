@@ -253,11 +253,12 @@ app.post("/api/clock-in", authenticate, async (req: any, res, next) => {
       auto_stop_time: '07:00'
     });
     
-    if (!isTimeInRange(now, config.clock_in_start, config.auto_stop_time)) {
-      return res.status(400).json({ 
-        error: `Clock-in is only allowed between ${config.clock_in_start} and ${config.auto_stop_time}.` 
-      });
-    }
+    // User requested to be able to clock in anytime
+    // if (!isTimeInRange(now, config.clock_in_start, config.auto_stop_time)) {
+    //   return res.status(400).json({ 
+    //     error: `Clock-in is only allowed between ${config.clock_in_start} and ${config.auto_stop_time}.` 
+    //   });
+    // }
 
     const startTime = now.toISOString();
     const existing = await queryOne('SELECT id FROM time_logs WHERE employee_id = ? AND end_time IS NULL', [employee_id]);
@@ -295,31 +296,64 @@ async function autoStopStaleLogs() {
   const now = new Date();
   const fiveMinsAgo = new Date(now.getTime() - 5 * 60 * 1000).toISOString();
   
-  // Find logs that haven't had a heartbeat in 5 minutes
-  const staleLogs = await query(`
+  const settings = await query('SELECT * FROM settings') as any[];
+  const config = settings.reduce((acc, s) => ({ ...acc, [s.key]: s.value }), {
+    clock_in_start: '22:55',
+    auto_stop_time: '07:00'
+  });
+  const [stopH, stopM] = config.auto_stop_time.split(':').map(Number);
+
+  // Find logs that haven't had a heartbeat in 5 minutes OR have passed the auto-stop time
+  const activeLogs = await query(`
     SELECT l.*, e.hourly_rate 
     FROM time_logs l
     JOIN employees e ON l.employee_id = e.id
-    WHERE l.end_time IS NULL 
-    AND l.last_heartbeat < ?
-  `, [fiveMinsAgo]) as any[];
+    WHERE l.end_time IS NULL
+  `) as any[];
   
-  for (const log of staleLogs) {
-    console.log(`Auto-stopping stale log for employee ${log.employee_id}`);
-    
-    // Use last_heartbeat as the end time (or now, but last_heartbeat is more accurate to when they were actually there)
-    const endTimeDate = new Date(log.last_heartbeat);
+  for (const log of activeLogs) {
+    const lastHeartbeatDate = new Date(log.last_heartbeat);
     const startTimeDate = new Date(log.start_time);
     
-    const durationHours = (endTimeDate.getTime() - startTimeDate.getTime()) / (1000 * 60 * 60);
-    const cappedHours = Math.max(0, Math.min(durationHours, 8));
-    const dailyPay = cappedHours * log.hourly_rate;
-    
-    await query(`
-      UPDATE time_logs 
-      SET end_time = ?, total_hours = ?, daily_pay = ? 
-      WHERE id = ?
-    `, [endTimeDate.toISOString(), cappedHours, dailyPay, log.id]);
+    let shouldStop = false;
+    let stopReason = "";
+    let stopTime = now;
+
+    // Check for stale heartbeat
+    if (lastHeartbeatDate.getTime() < new Date(fiveMinsAgo).getTime()) {
+      shouldStop = true;
+      stopReason = "stale heartbeat";
+      stopTime = lastHeartbeatDate;
+    }
+
+    // Check for auto-stop time
+    // If shift started before stop time today, stop time is today.
+    // If shift started after stop time today, stop time is tomorrow.
+    const autoStopTime = new Date(startTimeDate);
+    autoStopTime.setHours(stopH, stopM, 0, 0);
+    if (startTimeDate >= autoStopTime) {
+      autoStopTime.setDate(autoStopTime.getDate() + 1);
+    }
+
+    if (now >= autoStopTime) {
+      shouldStop = true;
+      stopReason = "auto-stop time reached";
+      stopTime = autoStopTime;
+    }
+
+    if (shouldStop) {
+      console.log(`Auto-stopping log for employee ${log.employee_id} due to ${stopReason}`);
+      
+      const durationHours = (stopTime.getTime() - startTimeDate.getTime()) / (1000 * 60 * 60);
+      const cappedHours = Math.max(0, Math.min(durationHours, 8));
+      const dailyPay = cappedHours * log.hourly_rate;
+      
+      await query(`
+        UPDATE time_logs 
+        SET end_time = ?, total_hours = ?, daily_pay = ? 
+        WHERE id = ?
+      `, [stopTime.toISOString(), cappedHours, dailyPay, log.id]);
+    }
   }
 }
 

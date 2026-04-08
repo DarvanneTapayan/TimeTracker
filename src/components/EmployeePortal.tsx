@@ -119,6 +119,24 @@ export default function EmployeePortal({
     }
   };
 
+  useEffect(() => {
+    if (employee.active_log && settings.auto_stop_time) {
+      const startTimeDate = new Date(employee.active_log.start_time);
+      const [stopH, stopM] = settings.auto_stop_time.split(':').map(Number);
+      
+      const autoStopTime = new Date(startTimeDate);
+      autoStopTime.setHours(stopH, stopM, 0, 0);
+      if (startTimeDate >= autoStopTime) {
+        autoStopTime.setDate(autoStopTime.getDate() + 1);
+      }
+
+      if (currentTime >= autoStopTime) {
+        // Force refresh to show clocked out state
+        onRefresh();
+      }
+    }
+  }, [currentTime, employee.active_log, settings.auto_stop_time, onRefresh]);
+
   const fetchLogs = async () => {
     try {
       const res = await fetchWithAuth(`/api/logs/${employee.id}`);
@@ -210,22 +228,8 @@ export default function EmployeePortal({
   };
 
   const isClockInAllowed = () => {
-    if (!settings || !settings.clock_in_start || !settings.auto_stop_time) return false;
-    const now = new Date();
-    const [sH, sM] = settings.clock_in_start.split(':').map(Number);
-    const [eH, eM] = settings.auto_stop_time.split(':').map(Number);
-    const nowH = now.getHours();
-    const nowM = now.getMinutes();
-
-    const startMin = sH * 60 + sM;
-    const endMin = eH * 60 + eM;
-    const nowMin = nowH * 60 + nowM;
-
-    if (startMin <= endMin) {
-      return nowMin >= startMin && nowMin <= endMin;
-    } else {
-      return nowMin >= startMin || nowMin <= endMin;
-    }
+    // User requested to be able to clock in anytime
+    return true;
   };
 
   const weeklyStats = useMemo(() => {
@@ -315,33 +319,6 @@ export default function EmployeePortal({
                 </div>
 
                 <div className="space-y-8">
-                  <section>
-                    <div className="flex items-center gap-2 mb-4">
-                      <Sun className="w-4 h-4 text-amber-500" />
-                      <h4 className="font-bold text-slate-900 dark:text-white">Appearance</h4>
-                    </div>
-                    <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-6 border border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-bold text-slate-900 dark:text-white">Dark Mode</p>
-                        <p className="text-xs text-slate-500">Switch between light and dark themes</p>
-                      </div>
-                      <button 
-                        onClick={() => setDarkMode(!darkMode)}
-                        className={cn(
-                          "w-14 h-8 rounded-full p-1 transition-colors duration-300 flex items-center",
-                          darkMode ? "bg-blue-600" : "bg-slate-200 dark:bg-slate-700"
-                        )}
-                      >
-                        <motion.div 
-                          animate={{ x: darkMode ? 24 : 0 }}
-                          className="w-6 h-6 bg-white dark:bg-slate-200 rounded-full shadow-sm flex items-center justify-center"
-                        >
-                          {darkMode ? <Moon className="w-3 h-3 text-blue-600" /> : <Sun className="w-3 h-3 text-amber-500" />}
-                        </motion.div>
-                      </button>
-                    </div>
-                  </section>
-
                   <section>
                     <div className="flex items-center gap-2 mb-4">
                       <QrCode className="w-4 h-4 text-blue-600" />
@@ -507,10 +484,8 @@ export default function EmployeePortal({
                     employee.active_log ? "text-blue-100" : "text-slate-500 dark:text-slate-400"
                   )}>
                     {employee.active_log 
-                      ? `Started at ${safeFormat(employee.active_log.start_time, 'hh:mm a')}`
-                      : isClockInAllowed() 
-                        ? "Ready to start your shift?" 
-                        : `Next shift available at ${settings.clock_in_start}`}
+                      ? `Started at ${safeFormat(employee.active_log.start_time, 'hh:mm a')} • Auto-stop: ${settings.auto_stop_time}`
+                      : "Ready to start your shift?"}
                   </p>
                   <div className={cn(
                     "h-1 w-1 rounded-full",
