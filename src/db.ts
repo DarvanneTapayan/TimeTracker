@@ -1,5 +1,4 @@
 import { createPool } from '@vercel/postgres';
-import Database from 'better-sqlite3';
 import path from 'path';
 
 const usePostgres = !!process.env.POSTGRES_URL;
@@ -7,22 +6,29 @@ const usePostgres = !!process.env.POSTGRES_URL;
 let sqliteDb: any;
 let pgPool: any;
 
+// Lazy load better-sqlite3 only when needed (not on Vercel)
+const getSqliteDb = async () => {
+  if (!sqliteDb) {
+    const { default: Database } = await import('better-sqlite3');
+    const dbPath = path.resolve(process.cwd(), 'payroll.db');
+    sqliteDb = new Database(dbPath);
+  }
+  return sqliteDb;
+};
+
 if (usePostgres) {
   pgPool = createPool();
-} else {
-  const dbPath = path.resolve(process.cwd(), 'payroll.db');
-  sqliteDb = new Database(dbPath);
 }
 
 export const query = async (text: string, params: any[] = []) => {
   if (usePostgres) {
-    // Convert ? to $1, $2, etc for Postgres
     let i = 1;
     const pgText = text.replace(/\?/g, () => `$${i++}`);
     const { rows } = await pgPool.query(pgText, params);
     return rows;
   } else {
-    const stmt = sqliteDb.prepare(text);
+    const db = await getSqliteDb();
+    const stmt = db.prepare(text);
     if (text.trim().toUpperCase().startsWith('SELECT')) {
       return stmt.all(...params);
     } else {
@@ -79,7 +85,8 @@ export const initDb = async () => {
       await query('INSERT INTO settings (key, value) VALUES (?, ?)', ['auto_stop_time', '07:00']);
     }
   } else {
-    sqliteDb.exec(`
+    const db = await getSqliteDb();
+    db.exec(`
       CREATE TABLE IF NOT EXISTS employees (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
@@ -105,16 +112,16 @@ export const initDb = async () => {
       );
     `);
 
-    const employeeCount = sqliteDb.prepare('SELECT COUNT(*) as count FROM employees').get() as { count: number };
+    const employeeCount = db.prepare('SELECT COUNT(*) as count FROM employees').get() as { count: number };
     if (employeeCount.count === 0) {
-      sqliteDb.prepare('INSERT INTO employees (name, username, password, role, hourly_rate) VALUES (?, ?, ?, ?, ?)').run('Administrator', 'admin', 'admin123', 'admin', 0);
-      sqliteDb.prepare('INSERT INTO employees (name, username, password, role, hourly_rate) VALUES (?, ?, ?, ?, ?)').run('Juan Dela Cruz', 'juan', 'password123', 'employee', 150);
+      db.prepare('INSERT INTO employees (name, username, password, role, hourly_rate) VALUES (?, ?, ?, ?, ?)').run('Administrator', 'admin', 'admin123', 'admin', 0);
+      db.prepare('INSERT INTO employees (name, username, password, role, hourly_rate) VALUES (?, ?, ?, ?, ?)').run('Juan Dela Cruz', 'juan', 'password123', 'employee', 150);
     }
 
-    const settingsCount = sqliteDb.prepare('SELECT COUNT(*) as count FROM settings').get() as { count: number };
+    const settingsCount = db.prepare('SELECT COUNT(*) as count FROM settings').get() as { count: number };
     if (settingsCount.count === 0) {
-      sqliteDb.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('clock_in_start', '22:55');
-      sqliteDb.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('auto_stop_time', '07:00');
+      db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('clock_in_start', '22:55');
+      db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('auto_stop_time', '07:00');
     }
   }
 };
