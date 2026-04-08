@@ -514,9 +514,6 @@ export default function AdminDashboard() {
             >
               <FileDown className="w-4 h-4" /> Generate Receipt
             </button>
-            <button className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">
-              <Download className="w-4 h-4" /> Export
-            </button>
           </div>
         </div>
 

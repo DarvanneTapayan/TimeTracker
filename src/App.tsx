@@ -33,10 +33,11 @@ function AppContent() {
 
   useEffect(() => {
     localStorage.setItem('peso_dark_mode', darkMode.toString());
+    const root = window.document.documentElement;
     if (darkMode) {
-      document.documentElement.classList.add('dark');
+      root.classList.add('dark');
     } else {
-      document.documentElement.classList.remove('dark');
+      root.classList.remove('dark');
     }
   }, [darkMode]);
 
@@ -147,61 +148,85 @@ function AppContent() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
-        <div className="w-full max-w-md">
-          <div className="text-center mb-10">
-            <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-blue-200 mx-auto mb-4">
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-6 transition-colors duration-500">
+        <div className="w-full max-w-[440px]">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center justify-center w-20 h-20 bg-blue-600 rounded-[2rem] text-white shadow-2xl shadow-blue-500/20 mb-6 transform hover:rotate-12 transition-transform duration-500">
               <Clock className="w-10 h-10" />
             </div>
-            <h1 className="text-3xl font-black text-slate-900">TImeTracker</h1>
-            <p className="text-slate-500 mt-2">Sign in to your account</p>
+            <h1 className="text-4xl font-black text-slate-900 dark:text-white tracking-tight mb-3">TimeTracker</h1>
+            <p className="text-slate-500 dark:text-slate-400 font-medium">Streamline your workflow with precision.</p>
           </div>
 
-          <form onSubmit={handleLogin} className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200 space-y-6">
-            {loginError && (
-              <div className="p-4 bg-red-50 text-red-600 text-sm font-medium rounded-xl border border-red-100">
-                {loginError}
+          <div className="bg-white dark:bg-slate-900 p-10 rounded-[2.5rem] shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-100 dark:border-slate-800 transition-all duration-500">
+            <form onSubmit={handleLogin} className="space-y-8">
+              {loginError && (
+                <div className="p-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm font-bold rounded-2xl border border-red-100 dark:border-red-900/30 flex items-center gap-3 animate-shake">
+                  <div className="w-1.5 h-1.5 bg-red-600 rounded-full" />
+                  {loginError}
+                </div>
+              )}
+              
+              <div className="space-y-3">
+                <label className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Username</label>
+                <div className="group relative">
+                  <div className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-blue-600 transition-colors">
+                    <User className="w-full h-full" />
+                  </div>
+                  <input
+                    type="text"
+                    required
+                    className="w-full pl-14 pr-6 py-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-slate-800 transition-all text-slate-900 dark:text-white font-medium"
+                    placeholder="Enter your username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                  />
+                </div>
               </div>
-            )}
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-700 ml-1">Username</label>
-              <div className="relative">
-                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                <input
-                  type="text"
-                  required
-                  className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                  placeholder="Enter your username"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                />
+
+              <div className="space-y-3">
+                <label className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Password</label>
+                <div className="group relative">
+                  <div className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-blue-600 transition-colors">
+                    <Lock className="w-full h-full" />
+                  </div>
+                  <input
+                    type="password"
+                    required
+                    className="w-full pl-14 pr-6 py-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-slate-800 transition-all text-slate-900 dark:text-white font-medium"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                </div>
               </div>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-700 ml-1">Password</label>
-              <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                <input
-                  type="password"
-                  required
-                  className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </div>
-            </div>
-            <button
-              type="submit"
-              className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl shadow-lg shadow-blue-100 transition-all active:scale-[0.98]"
-            >
-              Sign In
-            </button>
-          </form>
+
+              <button
+                type="submit"
+                className="w-full py-5 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-2xl shadow-lg shadow-blue-500/25 transition-all active:scale-[0.98] hover:shadow-xl hover:-translate-y-0.5"
+              >
+                Sign In to Dashboard
+              </button>
+            </form>
+          </div>
           
-          <div className="mt-8 text-center text-slate-400 text-sm">
-            <p>Admin: admin / admin123</p>
-            <p>Employee: juan / password123</p>
+          <div className="mt-12 flex flex-col items-center gap-4">
+            <div className="flex items-center gap-4 text-slate-400 dark:text-slate-600">
+              <div className="h-px w-12 bg-slate-200 dark:bg-slate-800" />
+              <span className="text-xs font-bold uppercase tracking-widest">Demo Credentials</span>
+              <div className="h-px w-12 bg-slate-200 dark:bg-slate-800" />
+            </div>
+            <div className="flex gap-6 text-xs font-bold">
+              <div className="flex flex-col items-center">
+                <span className="text-slate-400 dark:text-slate-500 uppercase tracking-tighter mb-1">Admin</span>
+                <span className="text-slate-600 dark:text-slate-400">admin / admin123</span>
+              </div>
+              <div className="w-px h-8 bg-slate-200 dark:bg-slate-800" />
+              <div className="flex flex-col items-center">
+                <span className="text-slate-400 dark:text-slate-500 uppercase tracking-tighter mb-1">Employee</span>
+                <span className="text-slate-600 dark:text-slate-400">juan / password123</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -227,9 +252,12 @@ function AppContent() {
                 <span className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Theme</span>
               </div>
               <button 
-                onClick={() => setDarkMode(!darkMode)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  setDarkMode(prev => !prev);
+                }}
                 className={cn(
-                  "w-10 h-6 rounded-full p-1 transition-colors duration-300 flex items-center",
+                  "w-10 h-6 rounded-full p-1 transition-colors duration-300 flex items-center cursor-pointer relative z-50",
                   darkMode ? "bg-blue-600" : "bg-slate-200 dark:bg-slate-700"
                 )}
               >
@@ -308,8 +336,11 @@ function AppContent() {
           </div>
           <div className="flex items-center gap-2">
             <button 
-              onClick={() => setDarkMode(!darkMode)}
-              className="p-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-lg"
+              onClick={(e) => {
+                e.preventDefault();
+                setDarkMode(prev => !prev);
+              }}
+              className="p-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-lg cursor-pointer relative z-50"
             >
               {darkMode ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
             </button>
