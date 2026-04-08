@@ -1,5 +1,5 @@
 {
-  "name": "PesoTime - Employee Tracker",
+  "name": "TImeTracker",
   "description": "A lightweight employee time tracker and payroll system with an 8-hour daily cap, calculated in Philippine Peso (₱).",
   "requestFramePermissions": []
 }

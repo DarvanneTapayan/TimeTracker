@@ -114,7 +114,7 @@ export default function App() {
             <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-blue-200 mx-auto mb-4">
               <Clock className="w-10 h-10" />
             </div>
-            <h1 className="text-3xl font-black text-slate-900">TimeTracker</h1>
+            <h1 className="text-3xl font-black text-slate-900">TImeTracker</h1>
             <p className="text-slate-500 mt-2">Sign in to your account</p>
           </div>
 
@@ -177,7 +177,7 @@ export default function App() {
           <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-200">
             <Clock className="w-6 h-6" />
           </div>
-          <h1 className="text-xl font-black tracking-tight text-slate-900">TimeTracker</h1>
+          <h1 className="text-xl font-black tracking-tight text-slate-900">TImeTracker</h1>
         </div>
 
         <div className="space-y-2">
@@ -233,7 +233,7 @@ export default function App() {
         <div className="lg:hidden flex items-center justify-between mb-8">
           <div className="flex items-center gap-2">
             <Clock className="w-8 h-8 text-blue-600" />
-            <span className="font-black text-xl">PesoTime</span>
+            <span className="font-black text-xl">TImeTracker</span>
           </div>
           <button onClick={handleLogout} className="p-2 bg-red-50 text-red-500 rounded-lg"><LogOut className="w-5 h-5" /></button>
         </div>
