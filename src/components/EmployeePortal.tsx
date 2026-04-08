@@ -71,7 +71,7 @@ export default function EmployeePortal({ employee, onRefresh }: EmployeePortalPr
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
           });
-          if (!res.ok) {
+          if (res && !res.ok) {
             // If heartbeat fails (e.g. server auto-stopped the log), refresh to show correct state
             onRefresh();
           }
@@ -91,15 +91,22 @@ export default function EmployeePortal({ employee, onRefresh }: EmployeePortalPr
   }, [employee.active_log, settings.auto_stop_time, employee.id]);
 
   const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
-    const savedUser = localStorage.getItem('peso_user');
-    const token = savedUser ? JSON.parse(savedUser).session_token : '';
-    return fetch(url, {
-      ...options,
-      headers: {
-        ...options.headers,
-        'x-session-token': token,
-      },
-    });
+    try {
+      const savedUser = localStorage.getItem('peso_user');
+      if (!savedUser) throw new Error('No saved user');
+      const parsed = JSON.parse(savedUser);
+      const token = parsed?.session_token || '';
+      return fetch(url, {
+        ...options,
+        headers: {
+          ...options.headers,
+          'x-session-token': token,
+        },
+      });
+    } catch (e) {
+      console.error('Auth fetch failed', e);
+      throw e;
+    }
   };
 
   const fetchLogs = async () => {
@@ -163,6 +170,7 @@ export default function EmployeePortal({ employee, onRefresh }: EmployeePortalPr
   };
 
   const formatElapsedTime = (ms: number) => {
+    if (isNaN(ms) || ms < 0) return "00:00:00";
     // Cap at 8 hours
     const totalSeconds = Math.floor(ms / 1000);
     const hours = Math.floor(totalSeconds / 3600);

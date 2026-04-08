@@ -3,11 +3,20 @@ import { LayoutDashboard, Users, Clock, ChevronRight, LogOut, Lock, User } from 
 import { EmployeeWithStatus } from './types';
 import EmployeePortal from './components/EmployeePortal';
 import AdminDashboard from './components/AdminDashboard';
+import ErrorBoundary from './components/ErrorBoundary';
 import { cn } from './lib/utils';
 
 type View = 'employee' | 'admin';
 
 export default function App() {
+  return (
+    <ErrorBoundary>
+      <AppContent />
+    </ErrorBoundary>
+  );
+}
+
+function AppContent() {
   const [user, setUser] = useState<EmployeeWithStatus | null>(null);
   const [view, setView] = useState<View>('employee');
   const [loading, setLoading] = useState(true);
@@ -22,7 +31,7 @@ export default function App() {
     if (savedUser) {
       try {
         const parsed = JSON.parse(savedUser);
-        if (!parsed.session_token) {
+        if (!parsed || !parsed.session_token) {
           localStorage.removeItem('peso_user');
           setLoading(false);
           return;
@@ -40,10 +49,12 @@ export default function App() {
           return res.json();
         })
         .then(data => {
-          if (data.id) {
+          if (data && data.id) {
             setUser(data);
             localStorage.setItem('peso_user', JSON.stringify(data));
             setView(data.role === 'admin' ? 'admin' : 'employee');
+          } else {
+            handleLogout();
           }
           setLoading(false);
         })

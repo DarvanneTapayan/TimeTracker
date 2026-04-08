@@ -39,15 +39,22 @@ export default function AdminDashboard() {
   }, []);
 
   const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
-    const savedUser = localStorage.getItem('peso_user');
-    const token = savedUser ? JSON.parse(savedUser).session_token : '';
-    return fetch(url, {
-      ...options,
-      headers: {
-        ...options.headers,
-        'x-session-token': token,
-      },
-    });
+    try {
+      const savedUser = localStorage.getItem('peso_user');
+      if (!savedUser) throw new Error('No saved user');
+      const parsed = JSON.parse(savedUser);
+      const token = parsed?.session_token || '';
+      return fetch(url, {
+        ...options,
+        headers: {
+          ...options.headers,
+          'x-session-token': token,
+        },
+      });
+    } catch (e) {
+      console.error('Auth fetch failed', e);
+      throw e;
+    }
   };
 
   const fetchData = async () => {

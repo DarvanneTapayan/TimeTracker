@@ -5,6 +5,7 @@ export interface Employee {
   password?: string;
   role: 'admin' | 'employee';
   hourly_rate: number;
+  session_token?: string;
 }
 
 export interface TimeLog {
