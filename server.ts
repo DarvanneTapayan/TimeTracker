@@ -44,16 +44,28 @@ app.post("/api/login", async (req, res, next) => {
   try {
     if (!dbInitialized) await initialize();
     const { username, password } = req.body;
-    console.log(`Login attempt for: ${username}`);
+    const cleanUsername = username?.trim();
+    const cleanPassword = password?.trim();
     
-    const user = await queryOne('SELECT id, name, username, role, hourly_rate FROM employees WHERE username = ? AND password = ?', [username, password]);
+    console.log(`Login attempt for: "${cleanUsername}"`);
+    
+    // Check for user first to provide better debug info
+    const user = await queryOne('SELECT id, name, username, password, role, hourly_rate FROM employees WHERE LOWER(username) = LOWER(?)', [cleanUsername]);
     
     if (user) {
-      console.log(`Login successful for: ${username}`);
-      const activeLog = await queryOne('SELECT id, start_time FROM time_logs WHERE employee_id = ? AND end_time IS NULL LIMIT 1', [user.id]);
-      res.json({ ...user, active_log: activeLog || null });
+      if (user.password === cleanPassword) {
+        console.log(`Login successful for: ${cleanUsername}`);
+        const activeLog = await queryOne('SELECT id, start_time FROM time_logs WHERE employee_id = ? AND end_time IS NULL LIMIT 1', [user.id]);
+        
+        // Don't send password back to client
+        const { password: _, ...userWithoutPassword } = user;
+        res.json({ ...userWithoutPassword, active_log: activeLog || null });
+      } else {
+        console.log(`Password mismatch for: ${cleanUsername}`);
+        res.status(401).json({ error: "Invalid credentials" });
+      }
     } else {
-      console.log(`Login failed for: ${username}`);
+      console.log(`User not found: ${cleanUsername}`);
       res.status(401).json({ error: "Invalid credentials" });
     }
   } catch (err) {
