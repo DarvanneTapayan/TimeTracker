@@ -67,7 +67,8 @@ export const initDb = async () => {
           username TEXT UNIQUE NOT NULL,
           password TEXT NOT NULL,
           role TEXT NOT NULL DEFAULT 'employee',
-          hourly_rate REAL NOT NULL
+          hourly_rate REAL NOT NULL,
+          qr_code TEXT
         );
       `;
       await pgPool.sql`
@@ -107,6 +108,14 @@ export const initDb = async () => {
       } catch (e) {
         console.log("Adding last_heartbeat column to time_logs...");
         await query('ALTER TABLE time_logs ADD COLUMN last_heartbeat TEXT');
+      }
+
+      // Migration: Add qr_code to employees if it doesn't exist
+      try {
+        await query('SELECT qr_code FROM employees LIMIT 1');
+      } catch (e) {
+        console.log("Adding qr_code column to employees...");
+        await query('ALTER TABLE employees ADD COLUMN qr_code TEXT');
       }
     } catch (err) {
       console.error("Postgres Init Error:", err);

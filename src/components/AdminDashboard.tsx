@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Users, FileText, Plus, Edit2, Check, X, Settings as SettingsIcon, Save, Trash2, Calendar as CalendarIcon, Filter, Download, ArrowUpRight, DollarSign, Clock } from 'lucide-react';
+import { Users, FileText, Plus, Edit2, Check, X, Settings as SettingsIcon, Save, Trash2, Calendar as CalendarIcon, Filter, Download, ArrowUpRight, DollarSign, Clock, FileDown } from 'lucide-react';
 import { format, isSameDay, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import Calendar from 'react-calendar';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { Employee, TimeLog } from '../types';
 import { formatPHP, cn } from '../lib/utils';
 import 'react-calendar/dist/Calendar.css';
@@ -182,6 +184,87 @@ export default function AdminDashboard() {
     const logCount = filteredLogs.length;
     return { totalHours, totalPay, logCount };
   }, [filteredLogs]);
+
+  const generateReceipt = () => {
+    if (employeeFilter === 'all') {
+      alert('Please select a specific employee to generate a receipt.');
+      return;
+    }
+
+    const employee = employees.find(e => e.id.toString() === employeeFilter);
+    if (!employee) return;
+
+    const doc = new jsPDF();
+    const now = new Date();
+    
+    // Header
+    doc.setFontSize(22);
+    doc.setTextColor(30, 41, 59); // slate-800
+    doc.text('PAYMENT RECEIPT', 105, 20, { align: 'center' });
+    
+    doc.setFontSize(10);
+    doc.setTextColor(100, 116, 139); // slate-500
+    doc.text(`Generated on ${format(now, 'MMMM dd, yyyy hh:mm a')}`, 105, 28, { align: 'center' });
+    
+    // Employee Info
+    doc.setDrawColor(226, 232, 240); // slate-200
+    doc.line(20, 35, 190, 35);
+    
+    doc.setFontSize(12);
+    doc.setTextColor(30, 41, 59);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Employee Details', 20, 45);
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.text(`Name: ${employee.name}`, 20, 52);
+    doc.text(`Hourly Rate: ${formatPHP(employee.hourly_rate)}/hr`, 20, 58);
+    
+    // Period Summary
+    doc.setFont('helvetica', 'bold');
+    doc.text('Period Summary', 130, 45);
+    doc.setFont('helvetica', 'normal');
+    
+    const periodText = Array.isArray(selectedDate) 
+      ? `${format(selectedDate[0], 'MMM dd')} - ${format(selectedDate[1], 'MMM dd')}`
+      : selectedDate ? format(selectedDate, 'MMMM dd, yyyy') : 'All Time';
+      
+    doc.text(`Period: ${periodText}`, 130, 52);
+    doc.text(`Total Hours: ${stats.totalHours.toFixed(2)} hrs`, 130, 58);
+    doc.text(`Total Payout: ${formatPHP(stats.totalPay)}`, 130, 64);
+    
+    // Table
+    const tableData = filteredLogs.map(log => [
+      format(new Date(log.start_time), 'MMM dd, yyyy'),
+      format(new Date(log.start_time), 'hh:mm a'),
+      log.end_time ? format(new Date(log.end_time), 'hh:mm a') : 'In Progress',
+      `${log.total_hours?.toFixed(2) || '0.00'} hrs`,
+      formatPHP(log.daily_pay || 0)
+    ]);
+    
+    autoTable(doc, {
+      startY: 75,
+      head: [['Date', 'Start', 'End', 'Hours', 'Pay']],
+      body: tableData,
+      headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255] },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+    });
+    
+    // QR Code if exists on the employee object
+    const empWithQr = employee as any;
+    if (empWithQr.qr_code) {
+      const finalY = (doc as any).lastAutoTable.finalY || 75;
+      doc.setFont('helvetica', 'bold');
+      doc.text('Payment Method (QR Code)', 20, finalY + 20);
+      try {
+        doc.addImage(empWithQr.qr_code, 'PNG', 20, finalY + 25, 40, 40);
+      } catch (e) {
+        console.error('Could not add QR code to PDF', e);
+      }
+    }
+    
+    doc.save(`Receipt_${employee.name}_${format(now, 'yyyy-MM-dd')}.pdf`);
+  };
 
   return (
     <div className="space-y-12 pb-20">
@@ -380,6 +463,18 @@ export default function AdminDashboard() {
                 <option key={emp.id} value={emp.id}>{emp.name}</option>
               ))}
             </select>
+            <button 
+              onClick={generateReceipt}
+              disabled={employeeFilter === 'all'}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2 rounded-xl font-bold transition-all shadow-sm",
+                employeeFilter === 'all' 
+                  ? "bg-slate-100 text-slate-400 cursor-not-allowed" 
+                  : "bg-blue-600 text-white hover:bg-blue-700"
+              )}
+            >
+              <FileDown className="w-4 h-4" /> Generate Receipt
+            </button>
             <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl font-bold text-slate-700 hover:bg-slate-50 transition-all">
               <Download className="w-4 h-4" /> Export
             </button>

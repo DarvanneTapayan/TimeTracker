@@ -78,7 +78,7 @@ app.get("/api/employees", async (req, res, next) => {
   try {
     if (!dbInitialized) await initialize();
     const employees = await query(`
-      SELECT id, name, username, password, role, hourly_rate
+      SELECT id, name, username, password, role, hourly_rate, qr_code
       FROM employees
       WHERE role = 'employee'
     `);
@@ -101,6 +101,19 @@ app.post("/api/employees", async (req, res, next) => {
     } else {
       next(err);
     }
+  }
+});
+
+// Update employee QR code
+app.put("/api/employees/:id/qr", async (req, res, next) => {
+  try {
+    if (!dbInitialized) await initialize();
+    const { id } = req.params;
+    const { qr_code } = req.body;
+    await query('UPDATE employees SET qr_code = ? WHERE id = ?', [qr_code, id]);
+    res.json({ success: true });
+  } catch (err) {
+    next(err);
   }
 });
 

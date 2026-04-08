@@ -18,4 +18,5 @@ export interface TimeLog {
 
 export interface EmployeeWithStatus extends Employee {
   active_log: { id: number; start_time: string } | null;
+  qr_code?: string;
 }

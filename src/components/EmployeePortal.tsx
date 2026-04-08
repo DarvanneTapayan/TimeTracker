@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Clock, LogOut, Play, Square, History, TrendingUp, Calendar, DollarSign, ArrowUpRight, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Clock, LogOut, Play, Square, History, TrendingUp, Calendar, DollarSign, ArrowUpRight, CheckCircle2, AlertCircle, Settings, QrCode, Upload, X as XIcon } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, isWithinInterval } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
 import { EmployeeWithStatus, TimeLog } from '../types';
@@ -17,6 +17,8 @@ export default function EmployeePortal({ employee, onRefresh }: EmployeePortalPr
     auto_stop_time: '07:00'
   });
   const [elapsedTime, setElapsedTime] = useState<number>(0);
+  const [showSettings, setShowSettings] = useState(false);
+  const [qrCode, setQrCode] = useState<string | null>(employee.qr_code || null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -188,11 +190,109 @@ export default function EmployeePortal({ employee, onRefresh }: EmployeePortalPr
     const totalHours = weeklyLogs.reduce((acc, log) => acc + (log.total_hours || 0), 0);
     const totalPay = weeklyLogs.reduce((acc, log) => acc + (log.daily_pay || 0), 0);
     
-    return { totalHours, totalPay, count: weeklyLogs.length };
+    return { totalHours, totalPay, count: weeklyLogs.length, logs: weeklyLogs };
   }, [logs]);
+
+  const handleQrUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64String = reader.result as string;
+        setQrCode(base64String);
+        try {
+          await fetch(`/api/employees/${employee.id}/qr`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ qr_code: base64String }),
+          });
+        } catch (err) {
+          console.error('Failed to save QR code', err);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   return (
     <div className="space-y-8 pb-12">
+      {/* Header with Settings Toggle */}
+      <div className="flex items-center justify-between px-2">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg">
+            <Clock className="w-5 h-5" />
+          </div>
+          <h1 className="text-2xl font-black text-slate-900">Employee Portal</h1>
+        </div>
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={() => setShowSettings(!showSettings)}
+            className={cn(
+              "p-2.5 rounded-xl transition-all shadow-sm",
+              showSettings ? "bg-slate-900 text-white" : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
+            )}
+          >
+            <Settings className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {showSettings && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <QrCode className="w-5 h-5 text-blue-600" />
+                  <h3 className="font-bold text-slate-900">Payment Settings</h3>
+                </div>
+                <button onClick={() => setShowSettings(false)} className="text-slate-400 hover:text-slate-600">
+                  <XIcon className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-4">
+                  <p className="text-sm text-slate-500 leading-relaxed">
+                    Upload your Maribank, GCash, or Maya QR code. This will be included in your generated receipts for easier payment processing.
+                  </p>
+                  <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-slate-200 rounded-2xl cursor-pointer hover:bg-slate-50 hover:border-blue-400 transition-all group">
+                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                      <Upload className="w-8 h-8 text-slate-400 group-hover:text-blue-500 mb-2" />
+                      <p className="text-sm text-slate-500 font-medium">Click to upload QR Code</p>
+                    </div>
+                    <input type="file" className="hidden" accept="image/*" onChange={handleQrUpload} />
+                  </label>
+                </div>
+                
+                <div className="flex flex-col items-center justify-center bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                  {qrCode ? (
+                    <div className="relative group">
+                      <img src={qrCode} alt="QR Code" className="w-40 h-40 object-contain rounded-lg shadow-md" />
+                      <button 
+                        onClick={() => { setQrCode(null); /* Also update DB */ }}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <XIcon className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="text-center space-y-2">
+                      <QrCode className="w-12 h-12 text-slate-200 mx-auto" />
+                      <p className="text-xs font-bold text-slate-300 uppercase tracking-widest">No QR Code Uploaded</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <motion.div 
