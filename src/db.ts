@@ -76,6 +76,7 @@ export const initDb = async () => {
           employee_id INTEGER NOT NULL,
           start_time TEXT NOT NULL,
           end_time TEXT,
+          last_heartbeat TEXT,
           total_hours REAL,
           daily_pay REAL,
           FOREIGN KEY (employee_id) REFERENCES employees (id)
@@ -99,6 +100,14 @@ export const initDb = async () => {
         await query('INSERT INTO settings (key, value) VALUES (?, ?)', ['clock_in_start', '22:55']);
         await query('INSERT INTO settings (key, value) VALUES (?, ?)', ['auto_stop_time', '07:00']);
       }
+
+      // Migration: Add last_heartbeat if it doesn't exist
+      try {
+        await query('SELECT last_heartbeat FROM time_logs LIMIT 1');
+      } catch (e) {
+        console.log("Adding last_heartbeat column to time_logs...");
+        await query('ALTER TABLE time_logs ADD COLUMN last_heartbeat TEXT');
+      }
     } catch (err) {
       console.error("Postgres Init Error:", err);
       throw err;
@@ -120,6 +129,7 @@ export const initDb = async () => {
         employee_id INTEGER NOT NULL,
         start_time TEXT NOT NULL,
         end_time TEXT,
+        last_heartbeat TEXT,
         total_hours REAL,
         daily_pay REAL,
         FOREIGN KEY (employee_id) REFERENCES employees (id)

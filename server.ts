@@ -204,12 +204,63 @@ app.post("/api/clock-in", async (req, res, next) => {
       return res.status(400).json({ error: "Already clocked in" });
     }
 
-    const result = await query('INSERT INTO time_logs (employee_id, start_time) VALUES (?, ?)', [employee_id, startTime]) as any[];
+    const result = await query('INSERT INTO time_logs (employee_id, start_time, last_heartbeat) VALUES (?, ?, ?)', [employee_id, startTime, startTime]) as any[];
     res.json({ id: result[0].id, start_time: startTime });
   } catch (err) {
     next(err);
   }
 });
+
+// Heartbeat
+app.post("/api/heartbeat", async (req, res, next) => {
+  try {
+    if (!dbInitialized) await initialize();
+    const { employee_id } = req.body;
+    const now = new Date().toISOString();
+    
+    // Update heartbeat for active log
+    await query('UPDATE time_logs SET last_heartbeat = ? WHERE employee_id = ? AND end_time IS NULL', [now, employee_id]);
+    
+    // Trigger auto-stop check for everyone
+    await autoStopStaleLogs();
+    
+    res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+async function autoStopStaleLogs() {
+  const now = new Date();
+  const fiveMinsAgo = new Date(now.getTime() - 5 * 60 * 1000).toISOString();
+  
+  // Find logs that haven't had a heartbeat in 5 minutes
+  const staleLogs = await query(`
+    SELECT l.*, e.hourly_rate 
+    FROM time_logs l
+    JOIN employees e ON l.employee_id = e.id
+    WHERE l.end_time IS NULL 
+    AND l.last_heartbeat < ?
+  `, [fiveMinsAgo]) as any[];
+  
+  for (const log of staleLogs) {
+    console.log(`Auto-stopping stale log for employee ${log.employee_id}`);
+    
+    // Use last_heartbeat as the end time (or now, but last_heartbeat is more accurate to when they were actually there)
+    const endTimeDate = new Date(log.last_heartbeat);
+    const startTimeDate = new Date(log.start_time);
+    
+    const durationHours = (endTimeDate.getTime() - startTimeDate.getTime()) / (1000 * 60 * 60);
+    const cappedHours = Math.max(0, Math.min(durationHours, 8));
+    const dailyPay = cappedHours * log.hourly_rate;
+    
+    await query(`
+      UPDATE time_logs 
+      SET end_time = ?, total_hours = ?, daily_pay = ? 
+      WHERE id = ?
+    `, [endTimeDate.toISOString(), cappedHours, dailyPay, log.id]);
+  }
+}
 
 // Clock Out
 app.post("/api/clock-out", async (req, res, next) => {

@@ -54,14 +54,33 @@ export default function EmployeePortal({ employee, onRefresh }: EmployeePortalPr
       };
       updateTimer();
       timerRef.current = setInterval(updateTimer, 1000);
+
+      // Heartbeat every 30 seconds
+      const heartbeatInterval = setInterval(async () => {
+        try {
+          const res = await fetch('/api/heartbeat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ employee_id: employee.id }),
+          });
+          if (!res.ok) {
+            // If heartbeat fails (e.g. server auto-stopped the log), refresh to show correct state
+            onRefresh();
+          }
+        } catch (err) {
+          console.error('Heartbeat failed', err);
+        }
+      }, 30000);
+
+      return () => {
+        if (timerRef.current) clearInterval(timerRef.current);
+        clearInterval(heartbeatInterval);
+      };
     } else {
       if (timerRef.current) clearInterval(timerRef.current);
       setElapsedTime(0);
     }
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [employee.active_log, settings.auto_stop_time]);
+  }, [employee.active_log, settings.auto_stop_time, employee.id]);
 
   const fetchLogs = async () => {
     try {
