@@ -4,90 +4,140 @@ import { createServer as createViteServer } from "vite";
 import path from "path";
 import { query, queryOne, initDb } from "./src/db.js";
 
-async function startServer() {
-  const app = express();
-  const PORT = 3000;
+const app = express();
+const PORT = Number(process.env.PORT) || 3000;
 
-  // Initialize database
-  await initDb();
+app.use(express.json());
 
-  app.use(express.json());
+// Initialize database (with error handling)
+let dbInitialized = false;
+let initError: string | null = null;
 
-  // API Routes
-  
-  // Login
-  app.post("/api/login", async (req, res) => {
+const initialize = async () => {
+  try {
+    console.log("Initializing database...");
+    await initDb();
+    dbInitialized = true;
+    initError = null;
+    console.log("Database initialized successfully");
+  } catch (err: any) {
+    initError = err.message;
+    console.error("Failed to initialize database:", err);
+  }
+};
+
+// API Routes
+
+// Health check
+app.get("/api/health", (req, res) => {
+  res.json({ 
+    status: "ok", 
+    dbInitialized, 
+    initError,
+    env: process.env.NODE_ENV,
+    hasPostgresUrl: !!process.env.POSTGRES_URL 
+  });
+});
+
+// Login
+app.post("/api/login", async (req, res, next) => {
+  try {
+    if (!dbInitialized) await initialize();
     const { username, password } = req.body;
+    console.log(`Login attempt for: ${username}`);
+    
     const user = await queryOne('SELECT id, name, username, role, hourly_rate FROM employees WHERE username = ? AND password = ?', [username, password]);
     
     if (user) {
+      console.log(`Login successful for: ${username}`);
       const activeLog = await queryOne('SELECT id, start_time FROM time_logs WHERE employee_id = ? AND end_time IS NULL LIMIT 1', [user.id]);
       res.json({ ...user, active_log: activeLog || null });
     } else {
+      console.log(`Login failed for: ${username}`);
       res.status(401).json({ error: "Invalid credentials" });
     }
-  });
+  } catch (err) {
+    console.error("Login error:", err);
+    next(err);
+  }
+});
 
-  // Get all employees (Admin only)
-  app.get("/api/employees", async (req, res) => {
+// Get all employees (Admin only)
+app.get("/api/employees", async (req, res, next) => {
+  try {
+    if (!dbInitialized) await initialize();
     const employees = await query(`
       SELECT id, name, username, password, role, hourly_rate
       FROM employees
       WHERE role = 'employee'
     `);
     res.json(employees);
-  });
+  } catch (err) {
+    next(err);
+  }
+});
 
-  // Create employee
-  app.post("/api/employees", async (req, res) => {
+// Create employee
+app.post("/api/employees", async (req, res, next) => {
+  try {
+    if (!dbInitialized) await initialize();
     const { name, username, password, hourly_rate } = req.body;
-    try {
-      const rows = await query('INSERT INTO employees (name, username, password, role, hourly_rate) VALUES (?, ?, ?, ?, ?)', [name, username, password, 'employee', hourly_rate]) as any[];
-      res.json({ id: rows[0].id });
-    } catch (err: any) {
-      if (err.message.includes('UNIQUE constraint failed') || err.message.includes('unique constraint')) {
-        res.status(400).json({ error: "Username already exists" });
-      } else {
-        res.status(500).json({ error: "Internal server error" });
-      }
+    const rows = await query('INSERT INTO employees (name, username, password, role, hourly_rate) VALUES (?, ?, ?, ?, ?)', [name, username, password, 'employee', hourly_rate]) as any[];
+    res.json({ id: rows[0].id });
+  } catch (err: any) {
+    if (err.message.includes('UNIQUE constraint failed') || err.message.includes('unique constraint')) {
+      res.status(400).json({ error: "Username already exists" });
+    } else {
+      next(err);
     }
-  });
+  }
+});
 
-  // Update employee
-  app.put("/api/employees/:id", async (req, res) => {
+// Update employee
+app.put("/api/employees/:id", async (req, res, next) => {
+  try {
+    if (!dbInitialized) await initialize();
     const { name, username, password, hourly_rate } = req.body;
     await query('UPDATE employees SET name = ?, username = ?, password = ?, hourly_rate = ? WHERE id = ?', [name, username, password, hourly_rate, req.params.id]);
     res.json({ success: true });
-  });
+  } catch (err) {
+    next(err);
+  }
+});
 
-  // Delete employee
-  app.delete("/api/employees/:id", async (req, res) => {
+// Delete employee
+app.delete("/api/employees/:id", async (req, res, next) => {
+  try {
+    if (!dbInitialized) await initialize();
     const { id } = req.params;
-    try {
-      // Delete logs first due to foreign key
-      await query('DELETE FROM time_logs WHERE employee_id = ?', [id]);
-      await query('DELETE FROM employees WHERE id = ?', [id]);
-      res.json({ success: true });
-    } catch (err) {
-      console.error('Failed to delete employee', err);
-      res.status(500).json({ error: "Failed to delete employee" });
-    }
-  });
+    await query('DELETE FROM time_logs WHERE employee_id = ?', [id]);
+    await query('DELETE FROM employees WHERE id = ?', [id]);
+    res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+});
 
-  // Settings
-  app.get("/api/settings", async (req, res) => {
+// Settings
+app.get("/api/settings", async (req, res, next) => {
+  try {
+    if (!dbInitialized) await initialize();
     const settings = await query('SELECT * FROM settings') as any[];
     const result = settings.reduce((acc, s) => ({ ...acc, [s.key]: s.value }), {
       clock_in_start: '22:55',
       auto_stop_time: '07:00'
     });
     res.json(result);
-  });
+  } catch (err) {
+    next(err);
+  }
+});
 
-  app.put("/api/settings", async (req, res) => {
+app.put("/api/settings", async (req, res, next) => {
+  try {
+    if (!dbInitialized) await initialize();
     const { clock_in_start, auto_stop_time } = req.body;
     if (clock_in_start) {
-      // Use Postgres-friendly UPSERT if possible, but simple delete/insert is safer for both
       await query('DELETE FROM settings WHERE key = ?', ['clock_in_start']);
       await query('INSERT INTO settings (key, value) VALUES (?, ?)', ['clock_in_start', clock_in_start]);
     }
@@ -96,27 +146,32 @@ async function startServer() {
       await query('INSERT INTO settings (key, value) VALUES (?, ?)', ['auto_stop_time', auto_stop_time]);
     }
     res.json({ success: true });
-  });
-
-  function isTimeInRange(now: Date, startStr: string, endStr: string) {
-    const [sH, sM] = startStr.split(':').map(Number);
-    const [eH, eM] = endStr.split(':').map(Number);
-    const nowH = now.getHours();
-    const nowM = now.getMinutes();
-
-    const startMin = sH * 60 + sM;
-    const endMin = eH * 60 + eM;
-    const nowMin = nowH * 60 + nowM;
-
-    if (startMin <= endMin) {
-      return nowMin >= startMin && nowMin <= endMin;
-    } else {
-      return nowMin >= startMin || nowMin <= endMin;
-    }
+  } catch (err) {
+    next(err);
   }
+});
 
-  // Clock In
-  app.post("/api/clock-in", async (req, res) => {
+function isTimeInRange(now: Date, startStr: string, endStr: string) {
+  const [sH, sM] = startStr.split(':').map(Number);
+  const [eH, eM] = endStr.split(':').map(Number);
+  const nowH = now.getHours();
+  const nowM = now.getMinutes();
+
+  const startMin = sH * 60 + sM;
+  const endMin = eH * 60 + eM;
+  const nowMin = nowH * 60 + nowM;
+
+  if (startMin <= endMin) {
+    return nowMin >= startMin && nowMin <= endMin;
+  } else {
+    return nowMin >= startMin || nowMin <= endMin;
+  }
+}
+
+// Clock In
+app.post("/api/clock-in", async (req, res, next) => {
+  try {
+    if (!dbInitialized) await initialize();
     const { employee_id } = req.body;
     const now = new Date();
     
@@ -133,8 +188,6 @@ async function startServer() {
     }
 
     const startTime = now.toISOString();
-    
-    // Check if already clocked in
     const existing = await queryOne('SELECT id FROM time_logs WHERE employee_id = ? AND end_time IS NULL', [employee_id]);
     if (existing) {
       return res.status(400).json({ error: "Already clocked in" });
@@ -142,10 +195,15 @@ async function startServer() {
 
     const result = await query('INSERT INTO time_logs (employee_id, start_time) VALUES (?, ?)', [employee_id, startTime]) as any[];
     res.json({ id: result[0].id, start_time: startTime });
-  });
+  } catch (err) {
+    next(err);
+  }
+});
 
-  // Clock Out
-  app.post("/api/clock-out", async (req, res) => {
+// Clock Out
+app.post("/api/clock-out", async (req, res, next) => {
+  try {
+    if (!dbInitialized) await initialize();
     const { employee_id } = req.body;
     let endTimeDate = new Date();
     
@@ -161,10 +219,8 @@ async function startServer() {
     });
     const [stopH, stopM] = config.auto_stop_time.split(':').map(Number);
 
-    // Auto-stop logic
     const start = new Date(activeLog.start_time);
     const stopTime = new Date(start);
-    
     const startH = start.getHours();
     if (startH >= stopH) {
       stopTime.setDate(stopTime.getDate() + 1);
@@ -191,12 +247,15 @@ async function startServer() {
     `, [endTime, cappedHours, dailyPay, activeLog.id]);
 
     res.json({ success: true, total_hours: cappedHours, daily_pay: dailyPay, end_time: endTime });
-  });
+  } catch (err) {
+    next(err);
+  }
+});
 
-  // Get logs for employee (current week)
-  app.get("/api/logs/:employeeId", async (req, res) => {
-    // Postgres doesn't have datetime() exactly like SQLite, but we can use simple string comparison or TO_TIMESTAMP
-    // For simplicity and cross-compatibility, we'll use a standard SQL approach
+// Get logs for employee
+app.get("/api/logs/:employeeId", async (req, res, next) => {
+  try {
+    if (!dbInitialized) await initialize();
     const logs = await query(`
       SELECT * FROM time_logs 
       WHERE employee_id = ? 
@@ -204,10 +263,15 @@ async function startServer() {
       LIMIT 50
     `, [req.params.employeeId]);
     res.json(logs);
-  });
+  } catch (err) {
+    next(err);
+  }
+});
 
-  // Admin: Get all logs
-  app.get("/api/admin/logs", async (req, res) => {
+// Admin: Get all logs
+app.get("/api/admin/logs", async (req, res, next) => {
+  try {
+    if (!dbInitialized) await initialize();
     const logs = await query(`
       SELECT l.*, e.name as employee_name, e.hourly_rate
       FROM time_logs l
@@ -215,9 +279,23 @@ async function startServer() {
       ORDER BY l.start_time DESC
     `);
     res.json(logs);
-  });
+  } catch (err) {
+    next(err);
+  }
+});
 
-  // Vite middleware for development
+// Error Handler
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error("API Error:", err);
+  res.status(500).json({ 
+    error: "Internal server error", 
+    message: err.message,
+    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined 
+  });
+});
+
+// Vite middleware for development
+const startVite = async () => {
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -231,10 +309,19 @@ async function startServer() {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
+};
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+if (process.env.NODE_ENV !== "production") {
+  startVite().then(() => {
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+      initialize();
+    });
   });
+} else {
+  // On Vercel, we don't call listen, we just export the app
+  startVite();
+  initialize();
 }
 
-startServer();
+export default app;

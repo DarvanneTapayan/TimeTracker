@@ -17,7 +17,10 @@ const getSqliteDb = async () => {
 };
 
 if (usePostgres) {
+  console.log("Using Postgres Database");
   pgPool = createPool();
+} else {
+  console.log("Using SQLite Database");
 }
 
 export const query = async (text: string, params: any[] = []) => {
@@ -30,8 +33,13 @@ export const query = async (text: string, params: any[] = []) => {
       pgText += ' RETURNING id';
     }
     
-    const { rows } = await pgPool.query(pgText, params);
-    return rows;
+    try {
+      const { rows } = await pgPool.query(pgText, params);
+      return rows;
+    } catch (err) {
+      console.error("Postgres Query Error:", err);
+      throw err;
+    }
   } else {
     const db = await getSqliteDb();
     const stmt = db.prepare(text);
@@ -51,44 +59,49 @@ export const queryOne = async (text: string, params: any[] = []) => {
 
 export const initDb = async () => {
   if (usePostgres) {
-    await pgPool.sql`
-      CREATE TABLE IF NOT EXISTS employees (
-        id SERIAL PRIMARY KEY,
-        name TEXT NOT NULL,
-        username TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
-        role TEXT NOT NULL DEFAULT 'employee',
-        hourly_rate REAL NOT NULL
-      );
-    `;
-    await pgPool.sql`
-      CREATE TABLE IF NOT EXISTS time_logs (
-        id SERIAL PRIMARY KEY,
-        employee_id INTEGER NOT NULL,
-        start_time TEXT NOT NULL,
-        end_time TEXT,
-        total_hours REAL,
-        daily_pay REAL,
-        FOREIGN KEY (employee_id) REFERENCES employees (id)
-      );
-    `;
-    await pgPool.sql`
-      CREATE TABLE IF NOT EXISTS settings (
-        key TEXT PRIMARY KEY,
-        value TEXT NOT NULL
-      );
-    `;
+    try {
+      await pgPool.sql`
+        CREATE TABLE IF NOT EXISTS employees (
+          id SERIAL PRIMARY KEY,
+          name TEXT NOT NULL,
+          username TEXT UNIQUE NOT NULL,
+          password TEXT NOT NULL,
+          role TEXT NOT NULL DEFAULT 'employee',
+          hourly_rate REAL NOT NULL
+        );
+      `;
+      await pgPool.sql`
+        CREATE TABLE IF NOT EXISTS time_logs (
+          id SERIAL PRIMARY KEY,
+          employee_id INTEGER NOT NULL,
+          start_time TEXT NOT NULL,
+          end_time TEXT,
+          total_hours REAL,
+          daily_pay REAL,
+          FOREIGN KEY (employee_id) REFERENCES employees (id)
+        );
+      `;
+      await pgPool.sql`
+        CREATE TABLE IF NOT EXISTS settings (
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL
+        );
+      `;
 
-    const employees = await query('SELECT COUNT(*) as count FROM employees');
-    if (parseInt(employees[0].count) === 0) {
-      await query('INSERT INTO employees (name, username, password, role, hourly_rate) VALUES (?, ?, ?, ?, ?)', ['Administrator', 'admin', 'admin123', 'admin', 0]);
-      await query('INSERT INTO employees (name, username, password, role, hourly_rate) VALUES (?, ?, ?, ?, ?)', ['Juan Dela Cruz', 'juan', 'password123', 'employee', 150]);
-    }
+      const employees = await query('SELECT COUNT(*) as count FROM employees');
+      if (parseInt(employees[0].count) === 0) {
+        await query('INSERT INTO employees (name, username, password, role, hourly_rate) VALUES (?, ?, ?, ?, ?)', ['Administrator', 'admin', 'admin123', 'admin', 0]);
+        await query('INSERT INTO employees (name, username, password, role, hourly_rate) VALUES (?, ?, ?, ?, ?)', ['Juan Dela Cruz', 'juan', 'password123', 'employee', 150]);
+      }
 
-    const settings = await query('SELECT COUNT(*) as count FROM settings');
-    if (parseInt(settings[0].count) === 0) {
-      await query('INSERT INTO settings (key, value) VALUES (?, ?)', ['clock_in_start', '22:55']);
-      await query('INSERT INTO settings (key, value) VALUES (?, ?)', ['auto_stop_time', '07:00']);
+      const settings = await query('SELECT COUNT(*) as count FROM settings');
+      if (parseInt(settings[0].count) === 0) {
+        await query('INSERT INTO settings (key, value) VALUES (?, ?)', ['clock_in_start', '22:55']);
+        await query('INSERT INTO settings (key, value) VALUES (?, ?)', ['auto_stop_time', '07:00']);
+      }
+    } catch (err) {
+      console.error("Postgres Init Error:", err);
+      throw err;
     }
   } else {
     const db = await getSqliteDb();
