@@ -291,7 +291,7 @@ export default function EmployeePortal({
           <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg">
             <Clock className="w-5 h-5" />
           </div>
-          <h1 className="text-2xl font-black text-slate-900 dark:text-white">My Portal</h1>
+          <h1 className="text-2xl font-black text-white">My Portal</h1>
         </div>
       </div>
 
@@ -306,102 +306,102 @@ export default function EmployeePortal({
               onClick={() => setShowSettings(false)}
               className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100]"
             />
-            <motion.div
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed top-0 right-0 h-full w-full max-w-md bg-white dark:bg-slate-900 shadow-2xl z-[101] overflow-y-auto border-l border-slate-200 dark:border-slate-800"
-            >
-              <div className="p-8">
-                <div className="flex items-center justify-between mb-8">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-slate-100 dark:bg-slate-800 rounded-xl flex items-center justify-center text-slate-900 dark:text-white">
-                      <Settings className="w-5 h-5" />
+              <motion.div
+                initial={{ x: '100%' }}
+                animate={{ x: 0 }}
+                exit={{ x: '100%' }}
+                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                className="fixed top-0 right-0 h-full w-full max-w-md bg-slate-900 shadow-2xl z-[101] overflow-y-auto border-l border-slate-800"
+              >
+                <div className="p-8">
+                  <div className="flex items-center justify-between mb-8">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-slate-800 rounded-xl flex items-center justify-center text-white">
+                        <Settings className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-black text-white">Settings</h3>
+                        <p className="text-xs text-slate-500 font-medium uppercase tracking-widest">Employee Preferences</p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="text-xl font-black text-slate-900 dark:text-white">Settings</h3>
-                      <p className="text-xs text-slate-500 font-medium uppercase tracking-widest">Employee Preferences</p>
-                    </div>
+                    <button 
+                      onClick={() => setShowSettings(false)}
+                      className="p-2 hover:bg-slate-800 rounded-full text-slate-400 transition-colors"
+                    >
+                      <XIcon className="w-6 h-6" />
+                    </button>
                   </div>
-                  <button 
-                    onClick={() => setShowSettings(false)}
-                    className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full text-slate-400 transition-colors"
-                  >
-                    <XIcon className="w-6 h-6" />
-                  </button>
-                </div>
 
-                <div className="space-y-8">
-                  <section>
-                    <div className="flex items-center gap-2 mb-4">
-                      <QrCode className="w-4 h-4 text-blue-600" />
-                      <h4 className="font-bold text-slate-900 dark:text-white">Payment QR Code</h4>
-                    </div>
-                    <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-6 border border-slate-100 dark:border-slate-800 space-y-4">
-                      <p className="text-xs text-slate-500 leading-relaxed">
-                        Upload your Maribank, GCash, or Maya QR code. This will be included in your generated receipts for easier payment processing.
-                      </p>
-                      
-                      <div className="flex flex-col items-center gap-4">
-                        {qrCode ? (
-                          <div className="relative group">
-                            <img src={qrCode} alt="QR Code" className="w-48 h-48 object-contain rounded-2xl shadow-lg bg-white p-2" />
-                            <button 
-                              onClick={() => { setQrCode(null); /* Also update DB */ }}
-                              className="absolute -top-2 -right-2 bg-red-500 text-white p-1.5 rounded-full shadow-lg hover:bg-red-600 transition-colors"
-                            >
-                              <XIcon className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="w-48 h-48 bg-white dark:bg-slate-800 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl flex flex-col items-center justify-center text-center p-4">
-                            <QrCode className="w-10 h-10 text-slate-200 dark:text-slate-700 mb-2" />
-                            <p className="text-[10px] font-bold text-slate-300 dark:text-slate-600 uppercase tracking-widest">No QR Code</p>
-                          </div>
-                        )}
-
-                        <label className="w-full">
-                          <div className="w-full py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-center text-sm font-bold text-slate-600 dark:text-slate-400 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
-                            {qrCode ? 'Change QR Code' : 'Upload QR Code'}
-                          </div>
-                          <input type="file" className="hidden" accept="image/*" onChange={handleQrUpload} />
-                        </label>
+                  <div className="space-y-8">
+                    <section>
+                      <div className="flex items-center gap-2 mb-4">
+                        <QrCode className="w-4 h-4 text-blue-600" />
+                        <h4 className="font-bold text-white">Payment QR Code</h4>
                       </div>
-                    </div>
-                  </section>
+                      <div className="bg-slate-800/50 rounded-2xl p-6 border border-slate-800 space-y-4">
+                        <p className="text-xs text-slate-500 leading-relaxed">
+                          Upload your Maribank, GCash, or Maya QR code. This will be included in your generated receipts for easier payment processing.
+                        </p>
+                        
+                        <div className="flex flex-col items-center gap-4">
+                          {qrCode ? (
+                            <div className="relative group">
+                              <img src={qrCode} alt="QR Code" className="w-48 h-48 object-contain rounded-2xl shadow-lg bg-white p-2" />
+                              <button 
+                                onClick={() => { setQrCode(null); /* Also update DB */ }}
+                                className="absolute -top-2 -right-2 bg-red-500 text-white p-1.5 rounded-full shadow-lg hover:bg-red-600 transition-colors"
+                              >
+                                <XIcon className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="w-48 h-48 bg-slate-800 border-2 border-dashed border-slate-700 rounded-2xl flex flex-col items-center justify-center text-center p-4">
+                              <QrCode className="w-10 h-10 text-slate-700 mb-2" />
+                              <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">No QR Code</p>
+                            </div>
+                          )}
 
-                  <section>
-                    <div className="flex items-center gap-2 mb-4">
-                      <History className="w-4 h-4 text-purple-600" />
-                      <h4 className="font-bold text-slate-900 dark:text-white">Shift Preferences</h4>
-                    </div>
-                    <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-6 border border-slate-100 dark:border-slate-800 space-y-4">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-slate-600 dark:text-slate-400">Auto-stop Time</span>
-                        <span className="text-sm font-bold text-slate-900 dark:text-white">{settings.auto_stop_time}</span>
+                          <label className="w-full">
+                            <div className="w-full py-3 bg-slate-800 border border-slate-700 rounded-xl text-center text-sm font-bold text-slate-400 cursor-pointer hover:bg-slate-700 transition-colors">
+                              {qrCode ? 'Change QR Code' : 'Upload QR Code'}
+                            </div>
+                            <input type="file" className="hidden" accept="image/*" onChange={handleQrUpload} />
+                          </label>
+                        </div>
                       </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-slate-600 dark:text-slate-400">Clock-in Start</span>
-                        <span className="text-sm font-bold text-slate-900 dark:text-white">{settings.clock_in_start}</span>
-                      </div>
-                      <p className="text-[10px] text-slate-400 italic">
-                        * These settings are managed by the administrator.
-                      </p>
-                    </div>
-                  </section>
-                </div>
+                    </section>
 
-                <div className="mt-12 pt-8 border-t border-slate-100 dark:border-slate-800">
-                  <button 
-                    onClick={() => setShowSettings(false)}
-                    className="w-full py-4 bg-slate-900 dark:bg-blue-600 text-white font-bold rounded-2xl hover:bg-slate-800 dark:hover:bg-blue-700 transition-all"
-                  >
-                    Done
-                  </button>
+                    <section>
+                      <div className="flex items-center gap-2 mb-4">
+                        <History className="w-4 h-4 text-purple-600" />
+                        <h4 className="font-bold text-white">Shift Preferences</h4>
+                      </div>
+                      <div className="bg-slate-800/50 rounded-2xl p-6 border border-slate-800 space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-slate-400">Auto-stop Time</span>
+                          <span className="text-sm font-bold text-white">{settings.auto_stop_time}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-slate-400">Clock-in Start</span>
+                          <span className="text-sm font-bold text-white">{settings.clock_in_start}</span>
+                        </div>
+                        <p className="text-[10px] text-slate-400 italic">
+                          * These settings are managed by the administrator.
+                        </p>
+                      </div>
+                    </section>
+                  </div>
+
+                  <div className="mt-12 pt-8 border-t border-slate-800">
+                    <button 
+                      onClick={() => setShowSettings(false)}
+                      className="w-full py-4 bg-blue-600 text-white font-bold rounded-2xl hover:bg-blue-700 transition-all"
+                    >
+                      Done
+                    </button>
+                  </div>
                 </div>
-              </div>
-            </motion.div>
+              </motion.div>
           </>
         )}
       </AnimatePresence>
@@ -410,16 +410,16 @@ export default function EmployeePortal({
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm"
+          className="bg-slate-900 p-6 rounded-3xl border border-slate-800 shadow-sm"
         >
           <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center text-blue-600 dark:text-blue-400">
+            <div className="w-12 h-12 bg-blue-900/30 rounded-2xl flex items-center justify-center text-blue-400">
               <TrendingUp className="w-6 h-6" />
             </div>
-            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Weekly Earnings</span>
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Weekly Earnings</span>
           </div>
-          <div className="text-3xl font-black text-slate-900 dark:text-white">{formatPHP(weeklyStats.totalPay)}</div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 flex items-center gap-1">
+          <div className="text-3xl font-black text-white">{formatPHP(weeklyStats.totalPay)}</div>
+          <p className="text-xs text-slate-400 mt-2 flex items-center gap-1">
             <ArrowUpRight className="w-3 h-3 text-green-500" />
             Estimated for this week
           </p>
@@ -429,32 +429,32 @@ export default function EmployeePortal({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm"
+          className="bg-slate-900 p-6 rounded-3xl border border-slate-800 shadow-sm"
         >
           <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-amber-50 dark:bg-amber-900/30 rounded-2xl flex items-center justify-center text-amber-600 dark:text-amber-400">
+            <div className="w-12 h-12 bg-amber-900/30 rounded-2xl flex items-center justify-center text-amber-400">
               <Clock className="w-6 h-6" />
             </div>
-            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Hours Logged</span>
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Hours Logged</span>
           </div>
-          <div className="text-3xl font-black text-slate-900 dark:text-white">{weeklyStats.totalHours.toFixed(1)}h</div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">Across {weeklyStats.count} shifts this week</p>
+          <div className="text-3xl font-black text-white">{weeklyStats.totalHours.toFixed(1)}h</div>
+          <p className="text-xs text-slate-400 mt-2">Across {weeklyStats.count} shifts this week</p>
         </motion.div>
 
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm"
+          className="bg-slate-900 p-6 rounded-3xl border border-slate-800 shadow-sm"
         >
           <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-purple-50 dark:bg-purple-900/30 rounded-2xl flex items-center justify-center text-purple-600 dark:text-purple-400">
+            <div className="w-12 h-12 bg-purple-900/30 rounded-2xl flex items-center justify-center text-purple-400">
               <DollarSign className="w-6 h-6" />
             </div>
-            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Hourly Rate</span>
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Hourly Rate</span>
           </div>
-          <div className="text-3xl font-black text-slate-900 dark:text-white">{formatPHP(employee.hourly_rate)}</div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">Standard employee rate</p>
+          <div className="text-3xl font-black text-white">{formatPHP(employee.hourly_rate)}</div>
+          <p className="text-xs text-slate-400 mt-2">Standard employee rate</p>
         </motion.div>
       </div>
 
@@ -467,19 +467,19 @@ export default function EmployeePortal({
           "rounded-[2.5rem] p-1 shadow-2xl transition-all duration-500",
           employee.active_log 
             ? "bg-gradient-to-br from-blue-600 to-indigo-700 shadow-blue-200 dark:shadow-none" 
-            : "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-slate-100 dark:shadow-none"
+            : "bg-slate-900 border border-slate-800 shadow-none"
         )}
       >
         <div className={cn(
           "rounded-[2.4rem] p-8 md:p-10",
-          employee.active_log ? "bg-transparent text-white" : "bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+          employee.active_log ? "bg-transparent text-white" : "bg-slate-900 text-white"
         )}>
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-10">
             <div className="space-y-4">
               <div className="flex items-center gap-3">
                 <div className={cn(
                   "px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest",
-                  employee.active_log ? "bg-white/20 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
+                  employee.active_log ? "bg-white/20 text-white" : "bg-slate-800 text-slate-400"
                 )}>
                   {employee.active_log ? "Currently Working" : "Off Duty"}
                 </div>
@@ -489,13 +489,13 @@ export default function EmployeePortal({
               </div>
               
               <div>
-                <h2 className="text-4xl font-black tracking-tight">
+                <h2 className="text-4xl font-black tracking-tight text-white">
                   {employee.active_log ? "You're on the clock" : `Hello, ${employee.name.split(' ')[0]}!`}
                 </h2>
                 <div className="flex items-center gap-3 mt-2">
                   <p className={cn(
                     "text-lg font-medium",
-                    employee.active_log ? "text-blue-100" : "text-slate-500 dark:text-slate-400"
+                    employee.active_log ? "text-blue-100" : "text-slate-400"
                   )}>
                     {employee.active_log 
                       ? `Started at ${safeFormat(employee.active_log.start_time, 'hh:mm a')} • Auto-stop: ${settings.auto_stop_time}`
@@ -505,11 +505,11 @@ export default function EmployeePortal({
                   </p>
                   <div className={cn(
                     "h-1 w-1 rounded-full",
-                    employee.active_log ? "bg-blue-300" : "bg-slate-300 dark:bg-slate-700"
+                    employee.active_log ? "bg-blue-300" : "bg-slate-700"
                   )} />
                   <p className={cn(
                     "text-sm font-bold font-mono",
-                    employee.active_log ? "text-blue-200" : "text-slate-400 dark:text-slate-500"
+                    employee.active_log ? "text-blue-200" : "text-slate-500"
                   )}>
                     {format(currentTime, 'hh:mm:ss a')}
                   </p>
@@ -517,7 +517,7 @@ export default function EmployeePortal({
               </div>
 
               {!employee.active_log && !isClockInAllowed() && (
-                <div className="flex items-center gap-2 text-amber-600 bg-amber-50 dark:bg-amber-900/20 px-4 py-2 rounded-xl w-fit">
+                <div className="flex items-center gap-2 text-amber-600 bg-amber-900/20 px-4 py-2 rounded-xl w-fit">
                   <AlertCircle className="w-4 h-4" />
                   <span className="text-xs font-bold">Outside allowed hours</span>
                 </div>
@@ -536,16 +536,16 @@ export default function EmployeePortal({
               
               <div className="flex gap-4 w-full lg:w-auto">
                 {!employee.active_log ? (
-                  <button
-                    onClick={handleClockIn}
-                    disabled={!isClockInAllowed()}
-                    className={cn(
-                      "flex-1 lg:flex-none flex items-center justify-center gap-3 px-10 py-5 rounded-2xl font-black text-lg transition-all active:scale-95 shadow-xl",
-                      isClockInAllowed()
-                        ? "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200 dark:shadow-none"
-                        : "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed shadow-none"
-                    )}
-                  >
+                    <button
+                      onClick={handleClockIn}
+                      disabled={!isClockInAllowed()}
+                      className={cn(
+                        "flex-1 lg:flex-none flex items-center justify-center gap-3 px-10 py-5 rounded-2xl font-black text-lg transition-all active:scale-95 shadow-xl",
+                        isClockInAllowed()
+                          ? "bg-blue-600 hover:bg-blue-700 text-white shadow-none"
+                          : "bg-slate-800 text-slate-600 cursor-not-allowed shadow-none"
+                      )}
+                    >
                     <Play className="w-6 h-6 fill-current" /> Start Shift
                   </button>
                 ) : (
@@ -566,14 +566,14 @@ export default function EmployeePortal({
       <div className="space-y-6">
         <div className="flex items-center justify-between px-2">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-slate-900 dark:bg-slate-800 rounded-xl flex items-center justify-center text-white">
+            <div className="w-10 h-10 bg-slate-800 rounded-xl flex items-center justify-center text-white">
               <History className="w-5 h-5" />
             </div>
-            <h3 className="text-xl font-black text-slate-900 dark:text-white">Recent Activity</h3>
+            <h3 className="text-xl font-black text-white">Recent Activity</h3>
           </div>
           <button 
             onClick={fetchLogs}
-            className="text-sm font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+            className="text-sm font-bold text-blue-400 hover:text-blue-300 transition-colors"
           >
             Refresh Logs
           </button>
@@ -585,13 +585,13 @@ export default function EmployeePortal({
               <motion.div 
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="bg-white dark:bg-slate-900 rounded-3xl border border-dashed border-slate-300 dark:border-slate-800 p-12 text-center"
+                className="bg-slate-900 rounded-3xl border border-dashed border-slate-800 p-12 text-center"
               >
-                <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Calendar className="w-8 h-8 text-slate-300 dark:text-slate-700" />
+                <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Calendar className="w-8 h-8 text-slate-700" />
                 </div>
-                <h4 className="font-bold text-slate-900 dark:text-white">No logs yet</h4>
-                <p className="text-slate-500 dark:text-slate-400 text-sm">Your shift history will appear here.</p>
+                <h4 className="font-bold text-white">No logs yet</h4>
+                <p className="text-slate-400 text-sm">Your shift history will appear here.</p>
               </motion.div>
             ) : (
               logs.map((log, index) => (
@@ -600,21 +600,21 @@ export default function EmployeePortal({
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: index * 0.05 }}
-                  className="group bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 hover:border-blue-500 dark:hover:border-blue-400 hover:shadow-xl hover:shadow-blue-50 dark:hover:shadow-none transition-all duration-300"
+                  className="group bg-slate-900 rounded-3xl border border-slate-800 p-6 hover:border-blue-400 hover:shadow-none transition-all duration-300"
                 >
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <div className="flex items-center gap-5">
                       <div className={cn(
                         "w-14 h-14 rounded-2xl flex items-center justify-center transition-colors",
-                        log.end_time ? "bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400" : "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400"
+                        log.end_time ? "bg-green-900/20 text-green-400" : "bg-blue-900/20 text-blue-400"
                       )}>
                         {log.end_time ? <CheckCircle2 className="w-7 h-7" /> : <Clock className="w-7 h-7 animate-pulse" />}
                       </div>
                       <div>
-                        <div className="text-lg font-black text-slate-900 dark:text-white">
+                        <div className="text-lg font-black text-white">
                           {safeFormat(log.start_time, 'EEEE, MMMM dd')}
                         </div>
-                        <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 font-medium">
+                        <div className="flex items-center gap-2 text-slate-400 font-medium">
                           <span>{safeFormat(log.start_time, 'hh:mm a')}</span>
                           <span>→</span>
                           <span>{log.end_time ? safeFormat(log.end_time, 'hh:mm a') : 'In Progress'}</span>
@@ -622,20 +622,20 @@ export default function EmployeePortal({
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between md:justify-end gap-10 border-t md:border-t-0 dark:border-slate-800 pt-4 md:pt-0">
+                    <div className="flex items-center justify-between md:justify-end gap-10 border-t md:border-t-0 border-slate-800 pt-4 md:pt-0">
                       <div className="text-center md:text-right">
-                        <div className="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Duration</div>
+                        <div className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-1">Duration</div>
                         <div className={cn(
                           "text-xl font-black",
-                          log.total_hours && log.total_hours >= 8 ? "text-amber-600 dark:text-amber-400" : "text-slate-900 dark:text-white"
+                          log.total_hours && log.total_hours >= 8 ? "text-amber-400" : "text-white"
                         )}>
                           {log.total_hours?.toFixed(2) || '0.00'} <span className="text-xs">hrs</span>
                         </div>
                       </div>
                       
                       <div className="text-right">
-                        <div className="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Earnings</div>
-                        <div className="text-xl font-black text-blue-600 dark:text-blue-400">
+                        <div className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-1">Earnings</div>
+                        <div className="text-xl font-black text-blue-400">
                           {formatPHP(log.daily_pay || 0)}
                         </div>
                       </div>
